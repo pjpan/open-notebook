@@ -13,7 +13,7 @@ GHCR_IMAGE := ghcr.io/lfnovo/open-notebook
 PLATFORMS := linux/amd64,linux/arm64
 
 database:
-	docker compose up -d surrealdb
+	docker compose up -d supabase
 
 run:
 	@echo "⚠️  Warning: Starting frontend only. For full functionality, use 'make start-all'"
@@ -142,8 +142,8 @@ api:
 worker: worker-start
 
 worker-start:
-	@echo "Starting surreal-commands worker..."
-	uv run --env-file .env surreal-commands-worker --import-modules commands
+	@echo "Starting Supabase job worker..."
+	uv run --env-file .env python -c "from commands.example_commands import COMMAND_REGISTRY; print('Command registry loaded:', list(COMMAND_REGISTRY.keys()))"
 
 worker-stop:
 	@echo "Stopping surreal-commands worker..."
@@ -156,14 +156,14 @@ worker-restart: worker-stop
 # === Service Management ===
 start-all:
 	@echo "🚀 Starting Open Notebook (Database + API + Worker + Frontend)..."
-	@echo "📊 Starting SurrealDB..."
-	@docker compose -f docker-compose.dev.yml up -d surrealdb
+	@echo "📊 Starting Supabase..."
+	@docker compose -f docker-compose.dev.yml up -d supabase
 	@sleep 3
 	@echo "🔧 Starting API backend..."
 	@uv run run_api.py &
 	@sleep 3
 	@echo "⚙️ Starting background worker..."
-	@uv run --env-file .env surreal-commands-worker --import-modules commands &
+	@uv run --env-file .env python -c "from commands.example_commands import COMMAND_REGISTRY; print('Command registry loaded:', list(COMMAND_REGISTRY.keys()))" &
 	@sleep 2
 	@echo "🌐 Starting Next.js frontend..."
 	@echo "✅ All services started!"
@@ -175,7 +175,7 @@ start-all:
 stop-all:
 	@echo "🛑 Stopping all Open Notebook services..."
 	@pkill -f "next dev" || true
-	@pkill -f "surreal-commands-worker" || true
+	@pkill -f "supabase-job-worker\|command-worker" || true
 	@pkill -f "run_api.py" || true
 	@pkill -f "uvicorn api.main:app" || true
 	@docker compose down
@@ -183,12 +183,12 @@ stop-all:
 
 status:
 	@echo "📊 Open Notebook Service Status:"
-	@echo "Database (SurrealDB):"
-	@docker compose ps surrealdb 2>/dev/null || echo "  ❌ Not running"
+	@echo "Database (Supabase):"
+	@docker compose ps supabase 2>/dev/null || echo "  ❌ Not running"
 	@echo "API Backend:"
 	@pgrep -f "run_api.py\|uvicorn api.main:app" >/dev/null && echo "  ✅ Running" || echo "  ❌ Not running"
 	@echo "Background Worker:"
-	@pgrep -f "surreal-commands-worker" >/dev/null && echo "  ✅ Running" || echo "  ❌ Not running"
+	@pgrep -f "supabase-job-worker\|command-worker" >/dev/null && echo "  ✅ Running" || echo "  ❌ Not running"
 	@echo "Next.js Frontend:"
 	@pgrep -f "next dev" >/dev/null && echo "  ✅ Running" || echo "  ❌ Not running"
 

@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
-from surreal_commands import registry
+# Import for registry debugging - in a real implementation, you might want to use a different approach
+# for command registration with the Supabase job queue
 
 from api.command_service import CommandService
 
@@ -123,37 +124,13 @@ async def cancel_command_job(job_id: str):
 async def debug_registry():
     """Debug endpoint to see what commands are registered"""
     try:
-        # Get all registered commands
-        all_items = registry.get_all_commands()
-
-        # Create JSON-serializable data
-        command_items = []
-        for item in all_items:
-            try:
-                command_items.append(
-                    {
-                        "app_id": item.app_id,
-                        "name": item.name,
-                        "full_id": f"{item.app_id}.{item.name}",
-                    }
-                )
-            except Exception as item_error:
-                logger.error(f"Error processing item: {item_error}")
-
-        # Get the basic command structure
-        try:
-            commands_dict: dict[str, list[str]] = {}
-            for item in all_items:
-                if item.app_id not in commands_dict:
-                    commands_dict[item.app_id] = []
-                commands_dict[item.app_id].append(item.name)
-        except Exception:
-            commands_dict = {}
-
+        # For the Supabase job queue system, we can't easily introspect registered commands
+        # This is a simplified response for now
         return {
-            "total_commands": len(all_items),
-            "commands_by_app": commands_dict,
-            "command_items": command_items,
+            "total_commands": 0,
+            "commands_by_app": {},
+            "command_items": [],
+            "info": "Registry introspection not available in Supabase job queue system"
         }
 
     except Exception as e:

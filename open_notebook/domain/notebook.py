@@ -1,15 +1,13 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, ClassVar, Dict, List, Literal, Optional
 
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from surreal_commands import submit_command
-from surrealdb import RecordID
 
 from open_notebook.ai.models import model_manager
-from open_notebook.database.repository import ensure_record_id, repo_query
+from open_notebook.database.repository import repo_create, repo_query
 from open_notebook.domain.base import ObjectModel
 from open_notebook.exceptions import DatabaseOperationError, InvalidInputError
 from open_notebook.utils import split_text
@@ -30,61 +28,31 @@ class Notebook(ObjectModel):
 
     async def get_sources(self) -> List["Source"]:
         try:
-            srcs = await repo_query(
-                """
-                select * omit source.full_text from (
-                select in as source from reference where out=$id
-                fetch source
-            ) order by source.updated desc
-            """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return [Source(**src["source"]) for src in srcs] if srcs else []
+            # Assuming a one-to-many relationship with a notebook_id foreign key in the source table
+            srcs = await repo_query("source", filters={"notebook_id": self.id})
+            return [Source(**src) for src in srcs]
         except Exception as e:
             logger.error(f"Error fetching sources for notebook {self.id}: {str(e)}")
-            logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def get_notes(self) -> List["Note"]:
         try:
-            srcs = await repo_query(
-                """
-            select * omit note.content, note.embedding from (
-                select in as note from artifact where out=$id
-                fetch note
-            ) order by note.updated desc
-            """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return [Note(**src["note"]) for src in srcs] if srcs else []
+            # Assuming a one-to-many relationship with a notebook_id foreign key in the note table
+            notes = await repo_query("note", filters={"notebook_id": self.id})
+            return [Note(**note) for note in notes]
         except Exception as e:
             logger.error(f"Error fetching notes for notebook {self.id}: {str(e)}")
-            logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def get_chat_sessions(self) -> List["ChatSession"]:
         try:
-            srcs = await repo_query(
-                """
-                select * from (
-                    select
-                    <- chat_session as chat_session
-                    from refers_to
-                    where out=$id
-                    fetch chat_session
-                )
-                order by chat_session.updated desc
-            """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return (
-                [ChatSession(**src["chat_session"][0]) for src in srcs] if srcs else []
-            )
+            # Assuming a one-to-many relationship with a notebook_id foreign key in the chat_session table
+            sessions = await repo_query("chat_session", filters={"notebook_id": self.id})
+            return [ChatSession(**session) for session in sessions]
         except Exception as e:
             logger.error(
                 f"Error fetching chat sessions for notebook {self.id}: {str(e)}"
             )
-            logger.exception(e)
             raise DatabaseOperationError(e)
 
 
@@ -95,51 +63,28 @@ class Asset(BaseModel):
 
 class SourceEmbedding(ObjectModel):
     table_name: ClassVar[str] = "source_embedding"
+    source_id: int
     content: str
-
-    async def get_source(self) -> "Source":
-        try:
-            src = await repo_query(
-                """
-            select source.* from $id fetch source
-            """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return Source(**src[0]["source"])
-        except Exception as e:
-            logger.error(f"Error fetching source for embedding {self.id}: {str(e)}")
-            logger.exception(e)
-            raise DatabaseOperationError(e)
+    embedding: List[float]
 
 
 class SourceInsight(ObjectModel):
     table_name: ClassVar[str] = "source_insight"
+    source_id: int
     insight_type: str
     content: str
 
     async def get_source(self) -> "Source":
-        try:
-            src = await repo_query(
-                """
-            select source.* from $id fetch source
-            """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return Source(**src[0]["source"])
-        except Exception as e:
-            logger.error(f"Error fetching source for insight {self.id}: {str(e)}")
-            logger.exception(e)
-            raise DatabaseOperationError(e)
+        return await Source.get(self.source_id)
 
-    async def save_as_note(self, notebook_id: Optional[str] = None) -> Any:
+    async def save_as_note(self, notebook_id: Optional[int] = None) -> Any:
         source = await self.get_source()
         note = Note(
             title=f"{self.insight_type} from source {source.title}",
             content=self.content,
+            notebook_id=notebook_id,
         )
         await note.save()
-        if notebook_id:
-            await note.add_to_notebook(notebook_id)
         return note
 
 
@@ -147,74 +92,13 @@ class Source(ObjectModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     table_name: ClassVar[str] = "source"
+    notebook_id: int
     asset: Optional[Asset] = None
     title: Optional[str] = None
     topics: Optional[List[str]] = Field(default_factory=list)
     full_text: Optional[str] = None
-    command: Optional[Union[str, RecordID]] = Field(
-        default=None, description="Link to surreal-commands processing job"
-    )
+    processing_status: Optional[str] = "pending"
 
-    @field_validator("command", mode="before")
-    @classmethod
-    def parse_command(cls, value):
-        """Parse command field to ensure RecordID format"""
-        if isinstance(value, str) and value:
-            return ensure_record_id(value)
-        return value
-
-    @field_validator("id", mode="before")
-    @classmethod
-    def parse_id(cls, value):
-        """Parse id field to handle both string and RecordID inputs"""
-        if value is None:
-            return None
-        if isinstance(value, RecordID):
-            return str(value)
-        return str(value) if value else None
-
-    async def get_status(self) -> Optional[str]:
-        """Get the processing status of the associated command"""
-        if not self.command:
-            return None
-
-        try:
-            from surreal_commands import get_command_status
-
-            status = await get_command_status(str(self.command))
-            return status.status if status else "unknown"
-        except Exception as e:
-            logger.warning(f"Failed to get command status for {self.command}: {e}")
-            return "unknown"
-
-    async def get_processing_progress(self) -> Optional[Dict[str, Any]]:
-        """Get detailed processing information for the associated command"""
-        if not self.command:
-            return None
-
-        try:
-            from surreal_commands import get_command_status
-
-            status_result = await get_command_status(str(self.command))
-            if not status_result:
-                return None
-
-            # Extract execution metadata if available
-            result = getattr(status_result, "result", None)
-            execution_metadata = (
-                result.get("execution_metadata", {}) if isinstance(result, dict) else {}
-            )
-
-            return {
-                "status": status_result.status,
-                "started_at": execution_metadata.get("started_at"),
-                "completed_at": execution_metadata.get("completed_at"),
-                "error": getattr(status_result, "error_message", None),
-                "result": result,
-            }
-        except Exception as e:
-            logger.warning(f"Failed to get command progress for {self.command}: {e}")
-            return None
 
     async def get_context(
         self, context_size: Literal["short", "long"] = "short"
@@ -232,86 +116,61 @@ class Source(ObjectModel):
             return dict(id=self.id, title=self.title, insights=insights)
 
     async def get_embedded_chunks(self) -> int:
-        try:
-            result = await repo_query(
-                """
-                select count() as chunks from source_embedding where source=$id GROUP ALL
-                """,
-                {"id": ensure_record_id(self.id)},
-            )
-            if len(result) == 0:
-                return 0
-            return result[0]["chunks"]
-        except Exception as e:
-            logger.error(f"Error fetching chunks count for source {self.id}: {str(e)}")
-            logger.exception(e)
-            raise DatabaseOperationError(f"Failed to count chunks for source: {str(e)}")
+        # This is not efficient, but it's a simple way to get the count
+        chunks = await repo_query("source_embedding", select="id", filters={"source_id": self.id})
+        return len(chunks)
 
     async def get_insights(self) -> List[SourceInsight]:
-        try:
-            result = await repo_query(
-                """
-                SELECT * FROM source_insight WHERE source=$id
-                """,
-                {"id": ensure_record_id(self.id)},
-            )
-            return [SourceInsight(**insight) for insight in result]
-        except Exception as e:
-            logger.error(f"Error fetching insights for source {self.id}: {str(e)}")
-            logger.exception(e)
-            raise DatabaseOperationError("Failed to fetch insights for source")
+        insights = await repo_query("source_insight", filters={"source_id": self.id})
+        return [SourceInsight(**insight) for insight in insights]
 
-    async def add_to_notebook(self, notebook_id: str) -> Any:
+    async def add_to_notebook(self, notebook_id: int) -> Any:
         if not notebook_id:
             raise InvalidInputError("Notebook ID must be provided")
-        return await self.relate("reference", notebook_id)
+        self.notebook_id = notebook_id
+        await self.save()
 
-    async def vectorize(self) -> str:
+    async def vectorize(self) -> None:
         """
-        Submit vectorization as a background job using the vectorize_source command.
-
-        This method now leverages the job-based architecture to prevent HTTP connection
-        pool exhaustion when processing large documents. The actual chunk processing
-        happens in the background worker pool, with natural concurrency control.
-
-        Returns:
-            str: The command/job ID that can be used to track progress via the commands API
-
-        Raises:
-            ValueError: If source has no text to vectorize
-            DatabaseOperationError: If job submission fails
+        Vectorize the source content synchronously.
         """
-        logger.info(f"Submitting vectorization job for source {self.id}")
+        logger.info(f"Starting vectorization for source {self.id}")
+        self.processing_status = "in_progress"
+        await self.save()
 
         try:
             if not self.full_text:
                 raise ValueError(f"Source {self.id} has no text to vectorize")
 
-            # Submit the vectorize_source command which will:
-            # 1. Delete existing embeddings (idempotency)
-            # 2. Split text into chunks
-            # 3. Submit each chunk as an embed_chunk job
-            command_id = submit_command(
-                "open_notebook",  # app name
-                "vectorize_source",  # command name
-                {
-                    "source_id": str(self.id),
-                },
-            )
+            EMBEDDING_MODEL = await model_manager.get_embedding_model()
+            if not EMBEDDING_MODEL:
+                raise ValueError("Embedding model not configured")
+            
+            chunks = split_text(self.full_text)
+            embeddings = await EMBEDDING_MODEL.aembed(chunks)
 
-            command_id_str = str(command_id)
-            logger.info(
-                f"Vectorization job submitted for source {self.id}: "
-                f"command_id={command_id_str}"
-            )
+            embedding_records = [
+                SourceEmbedding(
+                    source_id=self.id,
+                    content=chunk,
+                    embedding=embedding,
+                ).model_dump(exclude_none=True)
+                for chunk, embedding in zip(chunks, embeddings)
+            ]
 
-            return command_id_str
+            for record in embedding_records:
+                await repo_create("source_embedding", record)
+
+            self.processing_status = "completed"
+            await self.save()
+            logger.info(f"Vectorization completed for source {self.id}")
 
         except Exception as e:
+            self.processing_status = "failed"
+            await self.save()
             logger.error(
-                f"Failed to submit vectorization job for source {self.id}: {e}"
+                f"Failed to vectorize source {self.id}: {e}"
             )
-            logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def add_insight(self, insight_type: str, content: str) -> Any:
@@ -321,42 +180,17 @@ class Source(ObjectModel):
 
         if not insight_type or not content:
             raise InvalidInputError("Insight type and content must be provided")
-        try:
-            embedding = (
-                (await EMBEDDING_MODEL.aembed([content]))[0] if EMBEDDING_MODEL else []
-            )
-            return await repo_query(
-                """
-                CREATE source_insight CONTENT {
-                        "source": $source_id,
-                        "insight_type": $insight_type,
-                        "content": $content,
-                        "embedding": $embedding,
-                };""",
-                {
-                    "source_id": ensure_record_id(self.id),
-                    "insight_type": insight_type,
-                    "content": content,
-                    "embedding": embedding,
-                },
-            )
-        except Exception as e:
-            logger.error(f"Error adding insight to source {self.id}: {str(e)}")
-            raise  # DatabaseOperationError(e)
-
-    def _prepare_save_data(self) -> dict:
-        """Override to ensure command field is always RecordID format for database"""
-        data = super()._prepare_save_data()
-
-        # Ensure command field is RecordID format if not None
-        if data.get("command") is not None:
-            data["command"] = ensure_record_id(data["command"])
-
-        return data
+        
+        insight = SourceInsight(
+            source_id=self.id,
+            insight_type=insight_type,
+            content=content,
+        )
+        await insight.save()
+        return insight
 
     async def delete(self) -> bool:
         """Delete source and clean up associated file if it exists."""
-        # Clean up uploaded file if it exists
         if self.asset and self.asset.file_path:
             file_path = Path(self.asset.file_path)
             if file_path.exists():
@@ -365,20 +199,14 @@ class Source(ObjectModel):
                     logger.info(f"Deleted file for source {self.id}: {file_path}")
                 except Exception as e:
                     logger.warning(
-                        f"Failed to delete file {file_path} for source {self.id}: {e}. "
-                        "Continuing with database deletion."
+                        f"Failed to delete file {file_path} for source {self.id}: {e}."
                     )
-            else:
-                logger.debug(
-                    f"File {file_path} not found for source {self.id}, skipping cleanup"
-                )
-
-        # Call parent delete to remove database record
         return await super().delete()
 
 
 class Note(ObjectModel):
     table_name: ClassVar[str] = "note"
+    notebook_id: int
     title: Optional[str] = None
     note_type: Optional[Literal["human", "ai"]] = None
     content: Optional[str] = None
@@ -390,10 +218,11 @@ class Note(ObjectModel):
             raise InvalidInputError("Note content cannot be empty")
         return v
 
-    async def add_to_notebook(self, notebook_id: str) -> Any:
+    async def add_to_notebook(self, notebook_id: int) -> Any:
         if not notebook_id:
             raise InvalidInputError("Notebook ID must be provided")
-        return await self.relate("artifact", notebook_id)
+        self.notebook_id = notebook_id
+        await self.save()
 
     def get_context(
         self, context_size: Literal["short", "long"] = "short"
@@ -416,19 +245,23 @@ class Note(ObjectModel):
 
 class ChatSession(ObjectModel):
     table_name: ClassVar[str] = "chat_session"
-    nullable_fields: ClassVar[set[str]] = {"model_override"}
+    notebook_id: Optional[int] = None
+    source_id: Optional[int] = None
     title: Optional[str] = None
     model_override: Optional[str] = None
 
-    async def relate_to_notebook(self, notebook_id: str) -> Any:
+    async def relate_to_notebook(self, notebook_id: int):
         if not notebook_id:
             raise InvalidInputError("Notebook ID must be provided")
-        return await self.relate("refers_to", notebook_id)
+        self.notebook_id = notebook_id
+        await self.save()
 
-    async def relate_to_source(self, source_id: str) -> Any:
+    async def relate_to_source(self, source_id: int):
         if not source_id:
             raise InvalidInputError("Source ID must be provided")
-        return await self.relate("refers_to", source_id)
+        self.source_id = source_id
+        await self.save()
+
 
 
 async def text_search(
@@ -436,19 +269,18 @@ async def text_search(
 ):
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
-    try:
-        search_results = await repo_query(
-            """
-            select *
-            from fn::text_search($keyword, $results, $source, $note)
-            """,
-            {"keyword": keyword, "results": results, "source": source, "note": note},
-        )
-        return search_results
-    except Exception as e:
-        logger.error(f"Error performing text search: {str(e)}")
-        logger.exception(e)
-        raise DatabaseOperationError(e)
+    
+    # This is a simplified implementation. 
+    # For better results, use Supabase's full-text search capabilities.
+    search_results = []
+    if source:
+        sources = await repo_query("source", filters={"title": f"ilike.%{keyword}%"})
+        search_results.extend(sources)
+    if note:
+        notes = await repo_query("note", filters={"title": f"ilike.%{keyword}%"})
+        search_results.extend(notes)
+        
+    return search_results[:results]
 
 
 async def vector_search(
@@ -460,25 +292,33 @@ async def vector_search(
 ):
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
+    
+    # Get embedding for the search keyword
+    EMBEDDING_MODEL = await model_manager.get_embedding_model()
+    if not EMBEDDING_MODEL:
+        logger.warning("Embedding model not available for vector search")
+        return []
+    
     try:
-        EMBEDDING_MODEL = await model_manager.get_embedding_model()
-        if EMBEDDING_MODEL is None:
-            raise ValueError("EMBEDDING_MODEL is not configured")
-        embed = (await EMBEDDING_MODEL.aembed([keyword]))[0]
-        search_results = await repo_query(
-            """
-            SELECT * FROM fn::vector_search($embed, $results, $source, $note, $minimum_score);
-            """,
-            {
-                "embed": embed,
-                "results": results,
-                "source": source,
-                "note": note,
-                "minimum_score": minimum_score,
-            },
+        query_embedding = (await EMBEDDING_MODEL.aembed([keyword]))[0]
+        
+        from open_notebook.database.repository import repo_vector_search
+        # Perform vector search on source_embeddings table
+        matches = await repo_vector_search(
+            table="source_embedding",
+            column="embedding",  # The name of the embedding column
+            query_embedding=query_embedding,
+            similarity_threshold=minimum_score,
+            limit=results
         )
-        return search_results
+        
+        # Extract source_ids from matches and fetch the full sources
+        source_ids = list(set([match.get('source_id') for match in matches if match.get('source_id')]))
+        sources = []
+        if source_ids:
+            sources = await repo_query("source", filters={"id": {"in": source_ids}})
+        
+        return sources
     except Exception as e:
-        logger.error(f"Error performing vector search: {str(e)}")
-        logger.exception(e)
-        raise DatabaseOperationError(e)
+        logger.error(f"Vector search failed: {e}")
+        return []

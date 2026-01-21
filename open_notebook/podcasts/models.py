@@ -1,16 +1,14 @@
-from typing import Any, ClassVar, Dict, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional
 
 from pydantic import ConfigDict, Field, field_validator
-from surrealdb import RecordID
 
-from open_notebook.database.repository import ensure_record_id, repo_query
+from open_notebook.database.repository import repo_query
 from open_notebook.domain.base import ObjectModel
 
 
 class EpisodeProfile(ObjectModel):
     """
     Episode Profile - Simplified podcast configuration.
-    Replaces complex 15+ field configuration with user-friendly profiles.
     """
 
     table_name: ClassVar[str] = "episode_profile"
@@ -37,9 +35,7 @@ class EpisodeProfile(ObjectModel):
     @classmethod
     async def get_by_name(cls, name: str) -> Optional["EpisodeProfile"]:
         """Get episode profile by name"""
-        result = await repo_query(
-            "SELECT * FROM episode_profile WHERE name = $name", {"name": name}
-        )
+        result = await repo_query("episode_profile", filters={"name": name})
         if result:
             return cls(**result[0])
         return None
@@ -48,7 +44,6 @@ class EpisodeProfile(ObjectModel):
 class SpeakerProfile(ObjectModel):
     """
     Speaker Profile - Voice and personality configuration.
-    Supports 1-4 speakers for flexible podcast formats.
     """
 
     table_name: ClassVar[str] = "speaker_profile"
@@ -79,9 +74,7 @@ class SpeakerProfile(ObjectModel):
     @classmethod
     async def get_by_name(cls, name: str) -> Optional["SpeakerProfile"]:
         """Get speaker profile by name"""
-        result = await repo_query(
-            "SELECT * FROM speaker_profile WHERE name = $name", {"name": name}
-        )
+        result = await repo_query("speaker_profile", filters={"name": name})
         if result:
             return cls(**result[0])
         return None
@@ -110,38 +103,6 @@ class PodcastEpisode(ObjectModel):
     outline: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description="Generated outline"
     )
-    command: Optional[Union[str, RecordID]] = Field(
-        default=None, description="Link to surreal-commands job"
-    )
+    status: str = Field(default="pending", description="Generation status")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    async def get_job_status(self) -> Optional[str]:
-        """Get the status of the associated command"""
-        if not self.command:
-            return None
-
-        try:
-            from surreal_commands import get_command_status
-
-            status = await get_command_status(str(self.command))
-            return status.status if status else "unknown"
-        except Exception:
-            return "unknown"
-
-    @field_validator("command", mode="before")
-    @classmethod
-    def parse_command(cls, value):
-        if isinstance(value, str):
-            return ensure_record_id(value)
-        return value
-
-    def _prepare_save_data(self) -> dict:
-        """Override to ensure command field is always RecordID format for database"""
-        data = super()._prepare_save_data()
-
-        # Ensure command field is RecordID format if not None
-        if data.get("command") is not None:
-            data["command"] = ensure_record_id(data["command"])
-
-        return data

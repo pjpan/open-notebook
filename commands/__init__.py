@@ -1,4 +1,4 @@
-"""Surreal-commands integration for Open Notebook"""
+"""Supabase-job-queue integration for Open Notebook"""
 
 from .embedding_commands import embed_single_item_command, rebuild_embeddings_command
 from .example_commands import analyze_data_command, process_text_command

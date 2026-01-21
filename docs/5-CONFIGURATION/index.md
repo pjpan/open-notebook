@@ -9,7 +9,7 @@ Configuration is how you customize Open Notebook for your specific setup. This s
 Three things:
 
 1. **AI Provider** — Which LLM/embedding service you're using (OpenAI, Anthropic, Ollama, etc.)
-2. **Database** — How to connect to SurrealDB (usually pre-configured)
+2. **Database** — How to connect to Supabase (usually pre-configured)
 3. **Server** — API URL, ports, timeouts (usually auto-detected)
 
 ---
@@ -71,19 +71,16 @@ Loaded by: docker-compose.yml
 All of the settings provided below are to be placed inside your environment file (.env or docker.env depending on your setup).
 
 
-###  Surreal Database
+###  Supabase Database
 
 This is the database used by the app.
 
 ```
-SURREAL_URL=ws://surrealdb:8000/rpc
-SURREAL_USER=root
-SURREAL_PASSWORD=root  # Change in production!
-SURREAL_NAMESPACE=open_notebook
-SURREAL_DATABASE=open_notebook
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
 ```
 
-> The only thing that is critical to not miss is the hostname in the `SURREAL_URL`. Check what URL to use based on your deployment, [here](database.md).
+> The only thing that is critical to not miss is the correct Supabase project URL and anon key. Check what URL to use based on your deployment, [here](database.md).
 
 
 ### AI Provider (API Key or URL)
@@ -297,7 +294,7 @@ After configuration, verify it works:
 | Mistake | Problem | Fix |
 |---------|---------|-----|
 | Forget API key | Models not available | Add OPENAI_API_KEY (or your provider) |
-| Wrong database URL | Can't start API | Check SURREAL_URL format |
+| Wrong database URL | Can't start API | Check SUPABASE_URL format |
 | Expose port 5055 | "Can't connect to server" | Expose 5055 in docker-compose |
 | Typo in env var | Settings ignored | Check spelling (case-sensitive!) |
 | Quote mismatch | Value cut off | Use quotes: OPENAI_API_KEY="sk-..." |

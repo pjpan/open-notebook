@@ -12,7 +12,7 @@ import {
 
 export const sourcesApi = {
   list: async (params?: {
-    notebook_id?: string
+    notebook_id?: number
     limit?: number
     offset?: number
     sort_by?: 'created' | 'updated'
@@ -22,7 +22,7 @@ export const sourcesApi = {
     return response.data
   },
 
-  get: async (id: string) => {
+  get: async (id: number) => {
     const response = await apiClient.get<SourceDetailResponse>(`/sources/${id}`)
     return response.data
   },
@@ -66,21 +66,21 @@ export const sourcesApi = {
     return response.data
   },
 
-  update: async (id: string, data: UpdateSourceRequest) => {
+  update: async (id: number, data: UpdateSourceRequest) => {
     const response = await apiClient.put<SourceListResponse>(`/sources/${id}`, data)
     return response.data
   },
 
-  delete: async (id: string) => {
+  delete: async (id: number) => {
     await apiClient.delete(`/sources/${id}`)
   },
 
-  status: async (id: string) => {
+  status: async (id: number) => {
     const response = await apiClient.get<SourceStatusResponse>(`/sources/${id}/status`)
     return response.data
   },
 
-  upload: async (file: File, notebook_id: string) => {
+  upload: async (file: File, notebook_id: number) => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('notebook_id', notebook_id)
@@ -95,12 +95,12 @@ export const sourcesApi = {
     return response.data
   },
 
-  retry: async (id: string) => {
+  retry: async (id: number) => {
     const response = await apiClient.post<SourceResponse>(`/sources/${id}/retry`)
     return response.data
   },
 
-  downloadFile: async (id: string): Promise<AxiosResponse<Blob>> => {
+  downloadFile: async (id: number): Promise<AxiosResponse<Blob>> => {
     return apiClient.get(`/sources/${id}/download`, {
       responseType: 'blob',
     })

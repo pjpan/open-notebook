@@ -168,15 +168,12 @@ For self-hosted LLMs, LM Studio, or OpenAI-compatible endpoints:
 
 ---
 
-## Database: SurrealDB
+## Database: Supabase
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `SURREAL_URL` | Yes | ws://surrealdb:8000/rpc | SurrealDB WebSocket connection URL |
-| `SURREAL_USER` | Yes | root | SurrealDB username |
-| `SURREAL_PASSWORD` | Yes | root | SurrealDB password |
-| `SURREAL_NAMESPACE` | Yes | open_notebook | SurrealDB namespace |
-| `SURREAL_DATABASE` | Yes | open_notebook | SurrealDB database name |
+| `SUPABASE_URL` | Yes | None | Supabase project URL (e.g., https://your-project.supabase.co) |
+| `SUPABASE_ANON_KEY` | Yes | None | Supabase anon key for public access |
 
 ---
 
@@ -184,11 +181,11 @@ For self-hosted LLMs, LM Studio, or OpenAI-compatible endpoints:
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `SURREAL_COMMANDS_RETRY_ENABLED` | No | true | Enable retries on failure |
-| `SURREAL_COMMANDS_RETRY_MAX_ATTEMPTS` | No | 3 | Maximum retry attempts |
-| `SURREAL_COMMANDS_RETRY_WAIT_STRATEGY` | No | exponential_jitter | Retry wait strategy (exponential_jitter/exponential/fixed/random) |
-| `SURREAL_COMMANDS_RETRY_WAIT_MIN` | No | 1 | Minimum wait time between retries (seconds) |
-| `SURREAL_COMMANDS_RETRY_WAIT_MAX` | No | 30 | Maximum wait time between retries (seconds) |
+| `SUPABASE_RETRY_ENABLED` | No | true | Enable retries on failure |
+| `SUPABASE_RETRY_MAX_ATTEMPTS` | No | 3 | Maximum retry attempts |
+| `SUPABASE_RETRY_WAIT_STRATEGY` | No | exponential_jitter | Retry wait strategy (exponential_jitter/exponential/fixed/random) |
+| `SUPABASE_RETRY_WAIT_MIN` | No | 1 | Minimum wait time between retries (seconds) |
+| `SUPABASE_RETRY_WAIT_MAX` | No | 30 | Maximum wait time between retries (seconds) |
 
 ---
 
@@ -196,7 +193,7 @@ For self-hosted LLMs, LM Studio, or OpenAI-compatible endpoints:
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `SURREAL_COMMANDS_MAX_TASKS` | No | 5 | Maximum concurrent database tasks |
+| `SUPABASE_MAX_CONNECTIONS` | No | 5 | Maximum concurrent database connections |
 
 ---
 
@@ -252,8 +249,8 @@ OLLAMA_API_BASE=http://localhost:11434
 ```
 OPENAI_API_KEY=sk-proj-...
 API_URL=https://mynotebook.example.com
-SURREAL_USER=production_user
-SURREAL_PASSWORD=secure_password
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ### Self-Hosted Behind Reverse Proxy
@@ -265,7 +262,7 @@ API_URL=https://mynotebook.example.com
 ### High-Performance Deployment
 ```
 OPENAI_API_KEY=sk-proj-...
-SURREAL_COMMANDS_MAX_TASKS=10
+SUPABASE_MAX_CONNECTIONS=10
 TTS_BATCH_SIZE=5
 API_CLIENT_TIMEOUT=600
 ```
@@ -312,7 +309,7 @@ env | grep -E "^[A-Z_]+=" | sort
 - [ ] Get API key if cloud provider
 - [ ] Add to .env or docker.env
 - [ ] Set `API_URL` if behind reverse proxy
-- [ ] Change `SURREAL_PASSWORD` in production
+- [ ] Change `SUPABASE_ANON_KEY` in production
 - [ ] Verify with: `docker compose logs api | grep -i "error"`
 - [ ] Test in browser: Go to Settings → Models
 - [ ] Try a test chat

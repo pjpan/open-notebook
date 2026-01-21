@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from fastapi import HTTPException
 from loguru import logger
 from pydantic import BaseModel
-from surreal_commands import get_command_status, submit_command
+from open_notebook.database.job_queue import get_command_status, submit_command as sb_submit_command
 
 from open_notebook.domain.notebook import Notebook
 from open_notebook.podcasts.models import EpisodeProfile, PodcastEpisode, SpeakerProfile
@@ -57,13 +57,18 @@ class PodcastService:
             # Get content from notebook if not provided directly
             if not content and notebook_id:
                 try:
-                    notebook = await Notebook.get(notebook_id)
-                    # Get notebook context (this may need to be adjusted based on actual Notebook implementation)
-                    content = (
-                        await notebook.get_context()
-                        if hasattr(notebook, "get_context")
-                        else str(notebook)
-                    )
+                    # Convert string ID to integer for database lookup
+                    notebook_int_id = int(notebook_id) if notebook_id and notebook_id.isdigit() else None
+                    if notebook_int_id:
+                        notebook = await Notebook.get(notebook_int_id)
+                        # Get notebook context (this may need to be adjusted based on actual Notebook implementation)
+                        content = (
+                            await notebook.get_context()
+                            if hasattr(notebook, "get_context")
+                            else str(notebook)
+                        )
+                    else:
+                        content = f"Notebook ID: {notebook_id}"
                 except Exception as e:
                     logger.warning(
                         f"Failed to get notebook content, using notebook_id as content: {e}"
@@ -92,8 +97,8 @@ class PodcastService:
                 logger.error(f"Failed to import podcast commands: {import_err}")
                 raise ValueError("Podcast commands not available")
 
-            # Submit command to surreal-commands
-            job_id = submit_command("open_notebook", "generate_podcast", command_args)
+            # Submit command to Supabase job queue
+            job_id = sb_submit_command("open_notebook", "generate_podcast", command_args)
 
             # Convert RecordID to string if needed
             if not job_id:
@@ -153,7 +158,11 @@ class PodcastService:
     async def get_episode(episode_id: str) -> PodcastEpisode:
         """Get a specific podcast episode"""
         try:
-            episode = await PodcastEpisode.get(episode_id)
+            # Convert string ID to integer for database lookup
+            episode_int_id = int(episode_id) if episode_id and episode_id.isdigit() else None
+            if not episode_int_id:
+                raise ValueError(f"Invalid episode ID format: {episode_id}")
+            episode = await PodcastEpisode.get(episode_int_id)
             return episode
         except Exception as e:
             logger.error(f"Failed to get podcast episode {episode_id}: {e}")

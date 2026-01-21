@@ -14,31 +14,12 @@ This file provides architectural guidance for contributors working on Open Noteb
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              Frontend (React/Next.js)                    │
-│              frontend/ @ port 3000                       │
+│         Database (Supabase)                             │
+│         PostgreSQL + Vector DB @ port 5432              │
 ├─────────────────────────────────────────────────────────┤
-│ - Notebooks, sources, notes, chat, podcasts, search UI  │
-│ - Zustand state management, TanStack Query (React Query)│
-│ - Shadcn/ui component library with Tailwind CSS         │
-└────────────────────────┬────────────────────────────────┘
-                         │ HTTP REST
-┌────────────────────────▼────────────────────────────────┐
-│              API (FastAPI)                              │
-│              api/ @ port 5055                           │
-├─────────────────────────────────────────────────────────┤
-│ - REST endpoints for notebooks, sources, notes, chat    │
-│ - LangGraph workflow orchestration                      │
-│ - Job queue for async operations (podcasts)             │
-│ - Multi-provider AI provisioning via Esperanto          │
-└────────────────────────┬────────────────────────────────┘
-                         │ SurrealQL
-┌────────────────────────▼────────────────────────────────┐
-│         Database (SurrealDB)                            │
-│         Graph database @ port 8000                      │
-├─────────────────────────────────────────────────────────┤
-│ - Records: Notebook, Source, Note, ChatSession, etc.    │
-│ - Relationships: source-to-notebook, note-to-source     │
-│ - Vector embeddings for semantic search                 │
+│ - Tables: notebook, source, note, chat_session, etc.    │
+│ - Foreign Keys: source.notebook_id, note.notebook_id    │
+│ - Vector embeddings for semantic search via pgvector    │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -62,15 +43,15 @@ User documentation is at @docs/
 - **Framework**: FastAPI 0.104+
 - **Language**: Python 3.11+
 - **Workflows**: LangGraph state machines
-- **Database**: SurrealDB async driver
+- **Database**: Supabase PostgreSQL driver
 - **AI Providers**: Esperanto library (8+ providers: OpenAI, Anthropic, Google, Groq, Ollama, Mistral, DeepSeek, xAI)
-- **Job Queue**: Surreal-Commands for async jobs (podcasts)
+- **Job Queue**: Supabase-based job queue for async jobs (podcasts)
 - **Logging**: Loguru
 - **Validation**: Pydantic v2
 - **Testing**: Pytest
 
 ### Database
-- **SurrealDB**: Graph database with built-in embedding storage and vector search
+- **Supabase**: PostgreSQL database with pgvector extension for embedding storage and vector search
 - **Schema Migrations**: Automatic on API startup via AsyncMigrationManager
 
 ### Additional Services
@@ -85,7 +66,7 @@ User documentation is at @docs/
 
 ### 1. Async-First Design
 - All database queries, graph invocations, and API calls are async (await)
-- SurrealDB async driver with connection pooling
+- Supabase async driver with connection pooling
 - FastAPI handles concurrent requests efficiently
 
 ### 2. LangGraph Workflows
@@ -103,8 +84,8 @@ User documentation is at @docs/
 
 ### 4. Database Schema
 - **Automatic migrations**: AsyncMigrationManager runs on API startup
-- **SurrealDB graph model**: Records with relationships and embeddings
-- **Vector search**: Built-in semantic search across all content
+- **Supabase relational model**: Tables with foreign keys and relationships
+- **Vector search**: Semantic search across all content using pgvector
 - **Transactions**: Repo functions handle ACID operations
 
 ### 5. Authentication
@@ -118,7 +99,7 @@ User documentation is at @docs/
 ### API Startup
 - **Migrations run automatically** on startup; check logs for errors
 - **Must start API before UI**: UI depends on API for all data
-- **SurrealDB must be running**: API fails without database connection
+- **Supabase must be running**: API fails without database connection
 
 ### Frontend-Backend Communication
 - **Base API URL**: Configured in `.env.local` (default: http://localhost:5055)

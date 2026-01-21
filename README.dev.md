@@ -49,9 +49,9 @@ make start-all
 
 ### What This Does
 
-1. Starts SurrealDB in Docker (port 8000)
+1. Starts Supabase in Docker (port 5432)
 2. Starts FastAPI backend (port 5055)
-3. Starts background worker (surreal-commands)
+3. Starts background worker (Supabase job queue)
 4. Starts Next.js frontend (port 3000)
 
 ### Individual Services
@@ -305,10 +305,10 @@ Database migrations run **automatically** when the API starts.
 make status
 
 # Check database
-docker compose ps surrealdb
+docker compose ps supabase
 
 # View logs
-docker compose logs surrealdb
+docker compose logs supabase
 
 # Restart everything
 make stop-all
@@ -330,11 +330,11 @@ make stop-all
 ### Database Connection Issues
 
 ```bash
-# Verify SurrealDB is running
-docker compose ps surrealdb
+# Verify Supabase is running
+docker compose ps supabase
 
 # Check connection settings in .env
-cat .env | grep SURREAL
+cat .env | grep SUPABASE
 ```
 
 ### Docker Build Fails
@@ -362,7 +362,7 @@ open-notebook/
 │   ├── domain/            # Domain models
 │   ├── graphs/            # LangGraph workflows
 │   ├── ai/                # AI provider integration
-│   └── database/          # SurrealDB operations
+│   └── database/          # Supabase operations
 ├── migrations/             # Database migrations
 ├── tests/                  # Test suite
 ├── docs/                   # User documentation
@@ -382,11 +382,8 @@ See component-specific CLAUDE.md files for detailed architecture:
 
 ```bash
 # .env file
-SURREAL_URL=ws://localhost:8000
-SURREAL_USER=root
-SURREAL_PASS=root
-SURREAL_DB=open_notebook
-SURREAL_NS=production
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
 
 # AI Provider (at least one required)
 OPENAI_API_KEY=sk-...
@@ -404,7 +401,7 @@ See [docs/5-CONFIGURATION/](docs/5-CONFIGURATION/) for complete configuration gu
 ### Speed Up Local Development
 
 1. **Use `make start-all`** instead of Docker for daily work
-2. **Keep SurrealDB running** between sessions (`make database`)
+2. **Keep Supabase running** between sessions (`make database`)
 3. **Use `make docker-build-local`** only when testing Dockerfile changes
 4. **Skip multi-platform builds** until ready to publish
 

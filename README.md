@@ -92,7 +92,7 @@ Learn more about our project at [https://www.open-notebook.ai](https://www.open-
 
 ### Built With
 
-[![Python][Python]][Python-url] [![Next.js][Next.js]][Next-url] [![React][React]][React-url] [![SurrealDB][SurrealDB]][SurrealDB-url] [![LangChain][LangChain]][LangChain-url]
+[![Python][Python]][Python-url] [![Next.js][Next.js]][Next-url] [![React][React]][React-url] [![Supabase][Supabase]][Supabase-url] [![LangChain][LangChain]][LangChain-url]
 
 ## 🚀 Quick Start
 
@@ -268,7 +268,7 @@ We welcome contributions! We're especially looking for help with:
 - **Feature Development**: Build the coolest research tool together
 - **Documentation**: Improve guides and tutorials
 
-**Current Tech Stack**: Python, FastAPI, Next.js, React, SurrealDB
+**Current Tech Stack**: Python, FastAPI, Next.js, React, Supabase
 **Future Roadmap**: Real-time updates, enhanced async processing
 
 See our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to get started.
@@ -312,5 +312,5 @@ Open Notebook is MIT licensed. See the [LICENSE](LICENSE) file for details.
 [Python-url]: https://www.python.org/
 [LangChain]: https://img.shields.io/badge/LangChain-3A3A3A?style=for-the-badge&logo=chainlink&logoColor=white
 [LangChain-url]: https://www.langchain.com/
-[SurrealDB]: https://img.shields.io/badge/SurrealDB-FF5E00?style=for-the-badge&logo=databricks&logoColor=white
-[SurrealDB-url]: https://surrealdb.com/
+[Supabase]: https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white
+[Supabase-url]: https://supabase.com/

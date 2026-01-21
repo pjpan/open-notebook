@@ -10,11 +10,9 @@ services:
     env_file:
       - ./docker.env
     environment:
-      # Override for single-container mode: SurrealDB runs on localhost inside the same container
-      - SURREAL_URL=ws://localhost:8000/rpc
+      - SUPERVISOR_CONF=supervisord.single.conf
     volumes:
       - ./notebook_data:/app/data          # Application data
-      - ./surreal_single_data:/mydata      # SurrealDB data
     restart: always
     # Single container includes all services: SurrealDB, API, Worker, and Next.js Frontend
     # Access:

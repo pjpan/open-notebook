@@ -1,10 +1,11 @@
 import asyncio
 import time
 from typing import List, Optional
-
 from loguru import logger
 from pydantic import BaseModel
-from surreal_commands import command
+from open_notebook.database.job_queue import job_queue, JobStatus
+import uuid
+import json
 
 
 class TextProcessingInput(BaseModel):
@@ -40,7 +41,34 @@ class DataAnalysisOutput(BaseModel):
     error_message: Optional[str] = None
 
 
-@command("process_text", app="open_notebook")
+def create_command_handler(command_func, command_name: str):
+    """Create a command handler that submits jobs to the Supabase job queue"""
+    async def wrapped_handler(input_data):
+        job_id = str(uuid.uuid4())
+        
+        # Submit job to queue
+        await job_queue.submit_job("open_notebook", command_name, input_data.model_dump())
+        
+        # Update job status to in progress
+        await job_queue.update_job_status(job_id, JobStatus.IN_PROGRESS)
+        
+        try:
+            # Execute the actual command function
+            result = await command_func(input_data)
+            
+            # Update job status to completed
+            await job_queue.update_job_status(job_id, JobStatus.COMPLETED, result=result)
+            
+            return result
+        except Exception as e:
+            # Update job status to failed
+            await job_queue.update_job_status(job_id, JobStatus.FAILED, error_message=str(e))
+            raise
+    
+    return wrapped_handler
+
+
+# Direct function definitions (without surreal_commands decorator)
 async def process_text_command(input_data: TextProcessingInput) -> TextProcessingOutput:
     """
     Example command for text processing. Tests basic command functionality
@@ -91,7 +119,6 @@ async def process_text_command(input_data: TextProcessingInput) -> TextProcessin
         )
 
 
-@command("analyze_data", app="open_notebook")
 async def analyze_data_command(input_data: DataAnalysisInput) -> DataAnalysisOutput:
     """
     Example command for data analysis. Tests command with complex input/output
@@ -140,3 +167,17 @@ async def analyze_data_command(input_data: DataAnalysisInput) -> DataAnalysisOut
             processing_time=processing_time,
             error_message=str(e),
         )
+
+
+# Register the commands in the job queue system
+def register_commands():
+    """Register all commands with the job queue system"""
+    registered_commands = {
+        "process_text": process_text_command,
+        "analyze_data": analyze_data_command
+    }
+    return registered_commands
+
+
+# Get the registry of commands
+COMMAND_REGISTRY = register_commands()

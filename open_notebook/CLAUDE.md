@@ -5,7 +5,7 @@ The `open_notebook` module is the heart of the system: a multi-layer backend orc
 ## Purpose
 
 Encapsulates the entire backend architecture:
-1. **Data layer**: SurrealDB persistence with async CRUD and migrations
+1. **Data layer**: Supabase persistence with async CRUD and migrations
 2. **Domain layer**: Research models (Notebook, Source, Note, etc.) with embedded relationships
 3. **Workflow layer**: LangGraph state machines for content ingestion, chat, and transformations
 4. **AI provisioning**: Multi-provider model management with smart fallback logic
@@ -46,7 +46,7 @@ All components communicate through async/await patterns and use Pydantic for val
     └───────────────────┬───────────────┘
                         │
          ┌──────────────▼────────────────┐
-         │  Database (SurrealDB)          │
+         │  Database (Supabase)           │
          │ - repository.py (CRUD ops)     │
          │ - async_migrate.py (schema)    │
          │ - Configuration                │
@@ -61,7 +61,7 @@ All components communicate through async/await patterns and use Pydantic for val
 
 - **`database/`**: Async repository pattern (repo_query, repo_create, repo_upsert), connection pooling, and automatic schema migrations on API startup. See `database/CLAUDE.md`.
 
-- **`domain/`**: Core data models using Pydantic with SurrealDB persistence. Two base classes: `ObjectModel` (mutable records with auto-increment IDs and embedding) and `RecordModel` (singleton configuration). Includes search functions (text_search, vector_search). See `domain/CLAUDE.md`.
+- **`domain/`**: Core data models using Pydantic with Supabase persistence. Two base classes: `ObjectModel` (mutable records with auto-increment IDs and embedding) and `RecordModel` (singleton configuration). Includes search functions (text_search, vector_search). See `domain/CLAUDE.md`.
 
 - **`graphs/`**: LangGraph state machines for async workflows. Content ingestion (source.py), conversational agents (chat.py), search synthesis (ask.py), and transformations. Uses provision_langchain_model() for smart model selection with token-aware fallback. See `graphs/CLAUDE.md`.
 
@@ -69,7 +69,7 @@ All components communicate through async/await patterns and use Pydantic for val
 
 - **`utils/`**: Cross-cutting utilities: ContextBuilder (flexible context assembly from sources/notes/insights with token budgeting), TextUtils (truncation, cleaning), TokenUtils (GPT token counting), VersionUtils (schema compatibility). See `utils/CLAUDE.md`.
 
-- **`podcasts/`**: Podcast generation models: SpeakerProfile (TTS voice config), EpisodeProfile (generation settings), PodcastEpisode (job tracking via surreal-commands). See `podcasts/CLAUDE.md`.
+- **`podcasts/`**: Podcast generation models: SpeakerProfile (TTS voice config), EpisodeProfile (generation settings), PodcastEpisode (job tracking via Supabase job queue). See `podcasts/CLAUDE.md`.
 
 ### Configuration & Exceptions
 
@@ -116,7 +116,7 @@ User uploads file/URL
         └────────────────────┘
 ```
 
-**Fire-and-forget embeddings**: Source.vectorize() returns command_id without awaiting; embedding happens asynchronously via surreal-commands job system.
+**Fire-and-forget embeddings**: Source.vectorize() returns command_id without awaiting; embedding happens asynchronously via Supabase job queue system.
 
 ## Data Flow: Chat & Search
 
@@ -161,13 +161,13 @@ Model types (language, embedding, speech_to_text, text_to_speech) drive factory 
 `provision_langchain_model()` auto-detects large contexts (105K+ tokens) and upgrades to dedicated large_context_model. Falls back to default_chat_model if specific type not found.
 
 ### Fire-and-Forget Jobs
-Time-consuming operations (embedding, podcast generation) return command_id immediately. Caller polls surreal-commands for status; no blocking.
+Time-consuming operations (embedding, podcast generation) return command_id immediately. Caller polls Supabase job queue for status; no blocking.
 
 ### Embedding on Save
 Domain models with `needs_embedding()=True` auto-generate embeddings in `save()`. Search functions (text_search, vector_search) use embeddings for semantic matching.
 
 ### Relationship Management
-SurrealDB graph edges link entities: Notebook→Source (has), Source→Note (artifact), Note→Source (refers_to). See `relate()` in domain/base.py.
+Supabase foreign key relationships link entities: Notebook→Source (has), Source→Note (artifact), Note→Source (refers_to). See `relate()` in domain/base.py.
 
 ## Integration Points
 
@@ -180,7 +180,7 @@ SurrealDB graph edges link entities: Notebook→Source (has), Source→Note (art
 - Invokes graphs (chat, source, ask) via async wrapper
 - Relies on API for migrations (deprecated check in UI)
 
-**Background Jobs** (`surreal_commands`):
+**Background Jobs** (`Supabase job queue`):
 - Source.vectorize() submits async embedding job
 - PodcastEpisode.get_job_status() polls job queue
 - Decouples long-running operations from request flow
@@ -222,14 +222,14 @@ SurrealDB graph edges link entities: Notebook→Source (has), Source→Note (art
 
 ## Key Dependencies
 
-- **surrealdb**: AsyncSurreal client, RecordID type
+- **supabase**: Supabase client, async operations
 - **pydantic**: Validation, field_validator
 - **langgraph**: StateGraph, Send, SqliteSaver, async/sync bridging
 - **langchain_core**: Messages, OutputParser, RunnableConfig
 - **esperanto**: Multi-provider AI model abstraction (OpenAI, Anthropic, Google, Groq, Ollama, etc.)
 - **content-core**: File/URL content extraction
 - **ai_prompter**: Jinja2 template rendering for prompts
-- **surreal_commands**: Async job queue for embeddings, podcast generation
+- **Supabase job queue**: Async job queue for embeddings, podcast generation
 - **loguru**: Structured logging throughout
 - **tiktoken**: GPT token encoding for context window estimation
 

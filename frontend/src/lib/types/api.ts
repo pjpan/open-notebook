@@ -1,5 +1,5 @@
 export interface NotebookResponse {
-  id: string
+  id: number
   name: string
   description: string
   archived: boolean
@@ -10,7 +10,7 @@ export interface NotebookResponse {
 }
 
 export interface NoteResponse {
-  id: string
+  id: number
   title: string | null
   content: string | null
   note_type: string | null
@@ -19,7 +19,7 @@ export interface NoteResponse {
 }
 
 export interface SourceListResponse {
-  id: string
+  id: number
   title: string | null
   topics?: string[]                  // Make optional to match Python API
   asset: {
@@ -40,7 +40,7 @@ export interface SourceListResponse {
 
 export interface SourceDetailResponse extends SourceListResponse {
   full_text: string
-  notebooks?: string[]  // List of notebook IDs this source is linked to
+  notebooks?: number[]  // List of notebook IDs this source is linked to
 }
 
 export type SourceResponse = SourceDetailResponse
@@ -75,14 +75,14 @@ export interface CreateNoteRequest {
   title?: string
   content: string
   note_type?: string
-  notebook_id?: string
+  notebook_id?: number
 }
 
 export interface CreateSourceRequest {
   // Backward compatibility: support old single notebook_id
-  notebook_id?: string
+  notebook_id?: number
   // New multi-notebook support
-  notebooks?: string[]
+  notebooks?: number[]
   // Required fields
   type: 'link' | 'upload' | 'text'
   url?: string
@@ -116,7 +116,7 @@ export interface APIError {
 // Source Chat Types
 // Base session interface with common fields
 export interface BaseChatSession {
-  id: string
+  id: number
   title: string
   created: string
   updated: string
@@ -125,21 +125,21 @@ export interface BaseChatSession {
 }
 
 export interface SourceChatSession extends BaseChatSession {
-  source_id: string
+  source_id: number
   model_override?: string
 }
 
 export interface SourceChatMessage {
-  id: string
+  id: number
   type: 'human' | 'ai'
   content: string
   timestamp?: string
 }
 
 export interface SourceChatContextIndicator {
-  sources: string[]
-  insights: string[]
-  notes: string[]
+  sources: number[]
+  insights: number[]
+  notes: number[]
 }
 
 export interface SourceChatSessionWithMessages extends SourceChatSession {
@@ -148,7 +148,7 @@ export interface SourceChatSessionWithMessages extends SourceChatSession {
 }
 
 export interface CreateSourceChatSessionRequest {
-  source_id: string
+  source_id: number
   title?: string
   model_override?: string
 }
@@ -173,11 +173,11 @@ export interface SourceChatStreamEvent {
 
 // Notebook Chat Types
 export interface NotebookChatSession extends BaseChatSession {
-  notebook_id: string
+  notebook_id: number
 }
 
 export interface NotebookChatMessage {
-  id: string
+  id: number
   type: 'human' | 'ai'
   content: string
   timestamp?: string
@@ -188,7 +188,7 @@ export interface NotebookChatSessionWithMessages extends NotebookChatSession {
 }
 
 export interface CreateNotebookChatSessionRequest {
-  notebook_id: string
+  notebook_id: number
   title?: string
   model_override?: string
 }
@@ -199,7 +199,7 @@ export interface UpdateNotebookChatSessionRequest {
 }
 
 export interface SendNotebookChatMessageRequest {
-  session_id: string
+  session_id: number
   message: string
   context: {
     sources: Array<Record<string, unknown>>
@@ -209,10 +209,10 @@ export interface SendNotebookChatMessageRequest {
 }
 
 export interface BuildContextRequest {
-  notebook_id: string
+  notebook_id: number
   context_config: {
-    sources: Record<string, string>
-    notes: Record<string, string>
+    sources: Record<number, string>
+    notes: Record<number, string>
   }
 }
 

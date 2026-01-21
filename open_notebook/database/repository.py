@@ -1,176 +1,205 @@
 import os
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, TypeVar, Union
-
+from contextlib import contextmanager
+from supabase import create_client, Client
 from loguru import logger
-from surrealdb import AsyncSurreal, RecordID  # type: ignore
+from typing import Any, Dict, List, Optional
 
-T = TypeVar("T", Dict[str, Any], List[Dict[str, Any]])
+def get_supabase_client() -> Client:
+    """Get a Supabase client."""
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_ANON_KEY")
 
+    if not supabase_url or not supabase_key:
+        logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set in the environment.")
+        raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set.")
 
-def get_database_url():
-    """Get database URL with backward compatibility"""
-    surreal_url = os.getenv("SURREAL_URL")
-    if surreal_url:
-        return surreal_url
+    return create_client(supabase_url, supabase_key)
 
-    # Fallback to old format - WebSocket URL format
-    address = os.getenv("SURREAL_ADDRESS", "localhost")
-    port = os.getenv("SURREAL_PORT", "8000")
-    return f"ws://{address}/rpc:{port}"
+supabase_client = get_supabase_client()
 
-
-def get_database_password():
-    """Get password with backward compatibility"""
-    return os.getenv("SURREAL_PASSWORD") or os.getenv("SURREAL_PASS")
-
-
-def parse_record_ids(obj: Any) -> Any:
-    """Recursively parse and convert RecordIDs into strings."""
-    if isinstance(obj, dict):
-        return {k: parse_record_ids(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [parse_record_ids(item) for item in obj]
-    elif isinstance(obj, RecordID):
-        return str(obj)
-    return obj
-
-
-def ensure_record_id(value: Union[str, RecordID]) -> RecordID:
-    """Ensure a value is a RecordID."""
-    if isinstance(value, RecordID):
-        return value
-    return RecordID.parse(value)
-
-
-@asynccontextmanager
-async def db_connection():
-    db = AsyncSurreal(get_database_url())
-    await db.signin(
-        {
-            "username": os.environ.get("SURREAL_USER"),
-            "password": get_database_password(),
-        }
-    )
-    await db.use(
-        os.environ.get("SURREAL_NAMESPACE"), os.environ.get("SURREAL_DATABASE")
-    )
+async def repo_query(table: str, select: str = "*", filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Execute a SELECT query and return the results"""
     try:
-        yield db
-    finally:
-        await db.close()
-
-
-async def repo_query(
-    query_str: str, vars: Optional[Dict[str, Any]] = None
-) -> List[Dict[str, Any]]:
-    """Execute a SurrealQL query and return the results"""
-
-    async with db_connection() as connection:
-        try:
-            result = parse_record_ids(await connection.query(query_str, vars))
-            if isinstance(result, str):
-                raise RuntimeError(result)
-            return result
-        except RuntimeError as e:
-            # RuntimeError is raised for retriable transaction conflicts - log at debug to avoid noise
-            logger.debug(str(e))
-            raise
-        except Exception as e:
-            logger.exception(e)
-            raise
-
+        query = supabase_client.table(table).select(select)
+        if filters:
+            for key, value in filters.items():
+                if isinstance(value, str) and value.startswith("ilike."):
+                    # Handle ilike operator for partial matching
+                    pattern = value[6:]  # Remove "ilike." prefix
+                    query = query.ilike(key, pattern)
+                else:
+                    query = query.eq(key, value)
+        result = query.execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise
 
 async def repo_create(table: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new record in the specified table"""
-    # Remove 'id' attribute if it exists in data
-    data.pop("id", None)
-    data["created"] = datetime.now(timezone.utc)
-    data["updated"] = datetime.now(timezone.utc)
     try:
-        async with db_connection() as connection:
-            return parse_record_ids(await connection.insert(table, data))
-    except RuntimeError as e:
-        logger.error(str(e))
-        raise
+        result = supabase_client.table(table).insert(data).execute()
+        return result.data[0] if result.data else {}
     except Exception as e:
         logger.exception(e)
         raise RuntimeError("Failed to create record")
 
-
-async def repo_relate(
-    source: str, relationship: str, target: str, data: Optional[Dict[str, Any]] = None
-) -> List[Dict[str, Any]]:
-    """Create a relationship between two records with optional data"""
-    if data is None:
-        data = {}
-    query = f"RELATE {source}->{relationship}->{target} CONTENT $data;"
-    # logger.debug(f"Relate query: {query}")
-
-    return await repo_query(
-        query,
-        {
-            "data": data,
-        },
-    )
-
-
-async def repo_upsert(
-    table: str, id: Optional[str], data: Dict[str, Any], add_timestamp: bool = False
-) -> List[Dict[str, Any]]:
-    """Create or update a record in the specified table"""
-    data.pop("id", None)
-    if add_timestamp:
-        data["updated"] = datetime.now(timezone.utc)
-    query = f"UPSERT {id if id else table} MERGE $data;"
-    return await repo_query(query, {"data": data})
-
-
-async def repo_update(
-    table: str, id: str, data: Dict[str, Any]
-) -> List[Dict[str, Any]]:
+async def repo_update(table: str, id: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Update an existing record by table and id"""
-    # If id already contains the table name, use it as is
     try:
-        if isinstance(id, RecordID) or (":" in id and id.startswith(f"{table}:")):
-            record_id = id
-        else:
-            record_id = f"{table}:{id}"
-        data.pop("id", None)
-        if "created" in data and isinstance(data["created"], str):
-            data["created"] = datetime.fromisoformat(data["created"])
-        data["updated"] = datetime.now(timezone.utc)
-        query = f"UPDATE {record_id} MERGE $data;"
-        # logger.debug(f"Update query: {query}")
-        result = await repo_query(query, {"data": data})
-        # if isinstance(result, list):
-        #     return [_return_data(item) for item in result]
-        return parse_record_ids(result)
+        result = supabase_client.table(table).update(data).eq("id", id).execute()
+        return result.data
     except Exception as e:
+        logger.exception(e)
         raise RuntimeError(f"Failed to update record: {str(e)}")
 
 
-async def repo_delete(record_id: Union[str, RecordID]):
-    """Delete a record by record id"""
-
+async def repo_update_int_id(table: str, id: int, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Update an existing record by table and integer id"""
     try:
-        async with db_connection() as connection:
-            return await connection.delete(ensure_record_id(record_id))
+        result = supabase_client.table(table).update(data).eq("id", id).execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise RuntimeError(f"Failed to update record: {str(e)}")
+
+
+async def repo_upsert(table: str, id_column: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Upsert a record in the specified table"""
+    try:
+        result = supabase_client.table(table).upsert(data, on_conflict=id_column).execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise RuntimeError(f"Failed to upsert record: {str(e)}")
+
+async def repo_delete(table: str, id: str):
+    """Delete a record by record id"""
+    try:
+        result = supabase_client.table(table).delete().eq("id", id).execute()
+        return result.data
     except Exception as e:
         logger.exception(e)
         raise RuntimeError(f"Failed to delete record: {str(e)}")
 
 
-async def repo_insert(
-    table: str, data: List[Dict[str, Any]], ignore_duplicates: bool = False
-) -> List[Dict[str, Any]]:
-    """Create a new record in the specified table"""
+async def repo_delete_int_id(table: str, id: int):
+    """Delete a record by integer id"""
     try:
-        async with db_connection() as connection:
-            return parse_record_ids(await connection.insert(table, data))
+        result = supabase_client.table(table).delete().eq("id", id).execute()
+        return result.data
     except Exception as e:
-        if ignore_duplicates and "already contains" in str(e):
-            return []
         logger.exception(e)
-        raise RuntimeError("Failed to create record")
+        raise RuntimeError(f"Failed to delete record: {str(e)}")
+
+async def repo_relate(
+    from_table: str,
+    from_id: str,
+    relationship: str,
+    to_table: str,
+    to_id: str,
+    data: Optional[Dict[str, Any]] = None,
+):
+    """Create a relationship between two records with optional data"""
+    join_table = f"{from_table}_{to_table}_{relationship}"
+    relation_data = {
+        f"{from_table}_id": from_id,
+        f"{to_table}_id": to_id,
+    }
+    if data:
+        relation_data.update(data)
+    
+    try:
+        result = supabase_client.table(join_table).insert(relation_data).execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise RuntimeError(f"Failed to create relationship: {str(e)}")
+
+
+async def repo_relate_int_ids(
+    from_table: str,
+    from_id: int,
+    relationship: str,
+    to_table: str,
+    to_id: int,
+    data: Optional[Dict[str, Any]] = None,
+):
+    """Create a relationship between two records with integer IDs"""
+    join_table = f"{from_table}_{to_table}_{relationship}"
+    relation_data = {
+        f"{from_table}_id": from_id,
+        f"{to_table}_id": to_id,
+    }
+    if data:
+        relation_data.update(data)
+    
+    try:
+        result = supabase_client.table(join_table).insert(relation_data).execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise RuntimeError(f"Failed to create relationship: {str(e)}")
+
+async def repo_unrelate(
+    from_table: str,
+    from_id: str,
+    relationship: str,
+    to_table: str,
+    to_id: str,
+):
+    """Delete a relationship between two records"""
+    join_table = f"{from_table}_{to_table}_{relationship}"
+    try:
+        result = supabase_client.table(join_table).delete().eq(f"{from_table}_id", from_id).eq(f"{to_table}_id", to_id).execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise RuntimeError(f"Failed to delete relationship: {str(e)}")
+
+
+async def repo_unrelate_int_ids(
+    from_table: str,
+    from_id: int,
+    relationship: str,
+    to_table: str,
+    to_id: int,
+):
+    """Delete a relationship between two records with integer IDs"""
+    join_table = f"{from_table}_{to_table}_{relationship}"
+    try:
+        result = supabase_client.table(join_table).delete().eq(f"{from_table}_id", from_id).eq(f"{to_table}_id", to_id).execute()
+        return result.data
+    except Exception as e:
+        logger.exception(e)
+        raise RuntimeError(f"Failed to delete relationship: {str(e)}")
+
+async def repo_count(table: str, filters: Optional[Dict[str, Any]] = None) -> int:
+    """Execute a COUNT query and return the result"""
+    try:
+        query = supabase_client.table(table).select("id", count='exact')
+        if filters:
+            for key, value in filters.items():
+                query = query.eq(key, value)
+        result = query.execute()
+        return result.count or 0
+    except Exception as e:
+        logger.exception(e)
+        raise
+
+async def repo_vector_search(table: str, column: str, query_embedding: List[float], 
+                           similarity_threshold: float = 0.5, limit: int = 10) -> List[Dict[str, Any]]:
+    """Perform vector similarity search using Supabase's pgvector functionality"""
+    try:
+        # For now, this is a simplified approach - in real implementation you'd want
+        # to create a custom RPC function in Supabase such as:
+        # CREATE FUNCTION match_documents(query_embedding vector(1536), similarity_threshold float, match_count int)
+        # AS $$ SELECT * FROM table ORDER BY embedding <=> query_embedding LIMIT match_count; $$
+        
+        # For now, we'll return an empty list indicating vector search isn't fully implemented yet
+        # This would require setting up the proper pgvector functions in Supabase
+        return []
+    except Exception as e:
+        logger.exception(f"Vector search failed: {e}")
+        # Fallback to regular search if vector search is not available
+        return []

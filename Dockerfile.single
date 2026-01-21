@@ -42,10 +42,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install SurrealDB
-RUN curl --proto '=https' --tlsv1.2 -sSf https://install.surrealdb.com | sh
-
-# Install uv (optional but helpful for some scripts)
+RUN pip install --no-cache-dir -r requirements.txt# Install uv (optional but helpful for some scripts)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app

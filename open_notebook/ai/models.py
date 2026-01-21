@@ -9,7 +9,7 @@ from esperanto import (
 )
 from loguru import logger
 
-from open_notebook.database.repository import ensure_record_id, repo_query
+from open_notebook.database.repository import repo_query
 from open_notebook.domain.base import ObjectModel, RecordModel
 
 ModelType = Union[LanguageModel, EmbeddingModel, SpeechToTextModel, TextToSpeechModel]
@@ -23,54 +23,42 @@ class Model(ObjectModel):
 
     @classmethod
     async def get_models_by_type(cls, model_type):
-        models = await repo_query(
-            "SELECT * FROM model WHERE type=$model_type;", {"model_type": model_type}
-        )
+        models = await repo_query("model", filters={"type": model_type})
         return [Model(**model) for model in models]
 
 
 class DefaultModels(RecordModel):
-    record_id: ClassVar[str] = "open_notebook:default_models"
-    default_chat_model: Optional[str] = None
-    default_transformation_model: Optional[str] = None
-    large_context_model: Optional[str] = None
-    default_text_to_speech_model: Optional[str] = None
-    default_speech_to_text_model: Optional[str] = None
-    # default_vision_model: Optional[str]
-    default_embedding_model: Optional[str] = None
-    default_tools_model: Optional[str] = None
+    table_name: ClassVar[str] = "default_models"
+    record_id: ClassVar[str] = "default_models" # This should be the primary key of the single row in the table
+    default_chat_model: Optional[int] = None
+    default_transformation_model: Optional[int] = None
+    large_context_model: Optional[int] = None
+    default_text_to_speech_model: Optional[int] = None
+    default_speech_to_text_model: Optional[int] = None
+    default_embedding_model: Optional[int] = None
+    default_tools_model: Optional[int] = None
 
     @classmethod
     async def get_instance(cls) -> "DefaultModels":
-        """Always fetch fresh defaults from database (override parent caching behavior)"""
-        result = await repo_query(
-            "SELECT * FROM ONLY $record_id",
-            {"record_id": ensure_record_id(cls.record_id)},
-        )
+        """Always fetch fresh defaults from database"""
+        result = await repo_query(cls.table_name, filters={"id": cls.record_id})
 
         if result:
-            if isinstance(result, list) and len(result) > 0:
-                data = result[0]
-            elif isinstance(result, dict):
-                data = result
-            else:
-                data = {}
+            data = result[0]
         else:
             data = {}
 
-        # Create new instance with fresh data (bypass singleton cache)
-        instance = object.__new__(cls)
-        object.__setattr__(instance, "__dict__", {})
-        super(RecordModel, instance).__init__(**data)
+        # Create new instance with fresh data
+        instance = cls(**data)
         return instance
 
 
 class ModelManager:
     def __init__(self):
-        pass  # No caching needed
+        pass
 
-    async def get_model(self, model_id: str, **kwargs) -> Optional[ModelType]:
-        """Get a model by ID. Esperanto will cache the actual model instance."""
+    async def get_model(self, model_id: int, **kwargs) -> Optional[ModelType]:
+        """Get a model by ID."""
         if not model_id:
             return None
 
@@ -87,7 +75,6 @@ class ModelManager:
         ]:
             raise ValueError(f"Invalid model type: {model.type}")
 
-        # Create model based on type (Esperanto will cache the instance)
         if model.type == "language":
             return AIFactory.create_language(
                 model_name=model.name,
@@ -148,6 +135,7 @@ class ModelManager:
 
     async def get_embedding_model(self, **kwargs) -> Optional[EmbeddingModel]:
         """Get the default embedding model"""
+.
         defaults = await self.get_defaults()
         model_id = defaults.default_embedding_model
         if not model_id:
@@ -161,10 +149,6 @@ class ModelManager:
     async def get_default_model(self, model_type: str, **kwargs) -> Optional[ModelType]:
         """
         Get the default model for a specific type.
-
-        Args:
-            model_type: The type of model to retrieve (e.g., 'chat', 'embedding', etc.)
-            **kwargs: Additional arguments to pass to the model constructor
         """
         defaults = await self.get_defaults()
         model_id = None
