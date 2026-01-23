@@ -146,8 +146,8 @@ worker-start:
 	uv run --env-file .env python -c "from commands.example_commands import COMMAND_REGISTRY; print('Command registry loaded:', list(COMMAND_REGISTRY.keys()))"
 
 worker-stop:
-	@echo "Stopping surreal-commands worker..."
-	pkill -f "surreal-commands-worker" || true
+	@echo "Stopping Supabase job worker..."
+	pkill -f "supabase-job-worker\|command-worker" || true
 
 worker-restart: worker-stop
 	@sleep 2

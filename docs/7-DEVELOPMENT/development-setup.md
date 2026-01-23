@@ -8,7 +8,7 @@ Before you start, ensure you have the following installed:
 
 - **Python 3.11+** - Check with: `python --version`
 - **uv** (recommended) or **pip** - Install from: https://github.com/astral-sh/uv
-- **SurrealDB** - Via Docker or binary (see below)
+- **Supabase** - Via Docker (see below)
 - **Docker** (optional) - For containerized database
 - **Node.js 18+** (optional) - For frontend development
 - **Git** - For version control
@@ -47,11 +47,8 @@ Edit `.env` with your settings:
 
 ```bash
 # Database
-SURREAL_URL=ws://localhost:8000/rpc
-SURREAL_USER=root
-SURREAL_PASSWORD=password
-SURREAL_NAMESPACE=open_notebook
-SURREAL_DATABASE=development
+SUPABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+SUPABASE_ANON_KEY=anon_key
 
 # AI Providers (add your API keys)
 OPENAI_API_KEY=sk-...
@@ -77,23 +74,19 @@ You'll need at least one AI provider. Popular options:
 For local development, you can also use:
 - **Ollama** - Run locally without API keys (see "Local Ollama" below)
 
-## Step 4: Start SurrealDB
+## Step 4: Start Supabase
 
 ### Option A: Using Docker (Recommended)
 
 ```bash
-# Start SurrealDB in memory
-docker run -d --name surrealdb -p 8000:8000 \
-  surrealdb/surrealdb:v2 start \
-  --user root --pass password \
-  --bind 0.0.0.0:8000 memory
+# Start Supabase Postgres in memory
+docker run -d --name supabase -p 5432:5432 \
+  supabase/postgres:15.0.0
 
 # Or with persistent storage
-docker run -d --name surrealdb -p 8000:8000 \
-  -v surrealdb_data:/data \
-  surrealdb/surrealdb:v2 start \
-  --user root --pass password \
-  --bind 0.0.0.0:8000 file:/data/surreal.db
+docker run -d --name supabase -p 5432:5432 \
+  -v supabase_data:/var/lib/postgresql/data \
+  supabase/postgres:15.0.0
 ```
 
 ### Option B: Using Make
@@ -102,17 +95,19 @@ docker run -d --name surrealdb -p 8000:8000 \
 make database
 ```
 
+Note: Update the Makefile to use supabase instead of surrealdb.
+
 ### Option C: Using Docker Compose
 
 ```bash
-docker compose up -d surrealdb
+docker compose up -d supabase
 ```
 
-### Verify SurrealDB is Running
+### Verify Supabase is Running
 
 ```bash
-# Should show server information
-curl http://localhost:8000/
+# Should show PostgreSQL connection
+pg_isready -h localhost -p 5432
 ```
 
 ## Step 5: Run Database Migrations
@@ -133,6 +128,8 @@ Running migration 002_add_vectors
 ...
 Migrations completed successfully
 ```
+
+Migrations are now managed via Supabase SQL files in the migrations folder.
 
 ## Step 6: Start the API Server
 
@@ -188,7 +185,7 @@ Open your browser to: http://localhost:3000
 
 After setup, verify everything is working:
 
-- [ ] **SurrealDB**: `curl http://localhost:8000/` returns content
+- [ ] **Supabase**: `pg_isready -h localhost -p 5432` shows ready
 - [ ] **API**: `curl http://localhost:5055/health` returns `{"status": "ok"}`
 - [ ] **API Docs**: `open http://localhost:5055/docs` works
 - [ ] **Database**: API logs show migrations completing
@@ -202,7 +199,7 @@ After setup, verify everything is working:
 make start-all
 ```
 
-This starts SurrealDB, API, and frontend in one command.
+This starts Supabase, API, and frontend in one command.
 
 ### Individual Terminals (Recommended for Development)
 
@@ -300,10 +297,10 @@ git push origin feature/my-feature -f
 **Problem**: API can't connect to SurrealDB
 
 **Solutions**:
-1. Check if SurrealDB is running: `docker ps | grep surrealdb`
+1. Check if Supabase is running: `docker ps | grep supabase`
 2. Verify URL in `.env`: Should be `ws://localhost:8000/rpc`
-3. Restart SurrealDB: `docker stop surrealdb && docker rm surrealdb`
-4. Then restart with: `docker run -d --name surrealdb -p 8000:8000 surrealdb/surrealdb:v2 start --user root --pass password --bind 0.0.0.0:8000 memory`
+3. Restart Supabase: `docker stop supabase && docker rm supabase`
+4. Then restart with: `docker run -d --name supabase -p 5432:5432 supabase/postgres:15.0.0`
 
 ### "Address already in use"
 

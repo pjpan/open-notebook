@@ -14,7 +14,7 @@ services:
     volumes:
       - ./notebook_data:/app/data          # Application data
     restart: always
-    # Single container includes all services: SurrealDB, API, Worker, and Next.js Frontend
+    # Single container includes all services: Supabase, API, Worker, and Next.js Frontend
     # Access:
     # - Next.js UI: http://localhost:8502
     # - REST API: http://localhost:5055

@@ -1,15 +1,14 @@
 services:
-  surrealdb:
-    image: surrealdb/surrealdb:v2
+  supabase:
+    image: supabase/postgres:15.0.0
     volumes:
-      - ./surreal_data:/mydata
+      - ./supabase_data:/var/lib/postgresql/data
     environment:
-      - SURREAL_EXPERIMENTAL_GRAPHQL=true
+      POSTGRES_DB: open_notebook
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "8000:8000"
-    command: start --log info --user root --pass root rocksdb:/mydata/mydatabase.db
-    pull_policy: always
-    user: root
+      - "5432:5432"
     restart: always
   open_notebook:
     image: lfnovo/open_notebook:v1-latest
@@ -19,7 +18,7 @@ services:
     env_file:
       - ./docker.env
     depends_on:
-      - surrealdb
+      - supabase
     volumes:
       - ./notebook_data:/app/data
     restart: always

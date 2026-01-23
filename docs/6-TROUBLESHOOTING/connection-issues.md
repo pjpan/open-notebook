@@ -157,7 +157,7 @@ docker compose logs api | grep "slow\|timeout"
 ### Reduce Load
 ```bash
 # In .env:
-SURREAL_COMMANDS_MAX_TASKS=2
+SUPABASE_MAX_CONNECTIONS=2
 API_CLIENT_TIMEOUT=600
 
 # Restart
@@ -236,9 +236,9 @@ docker compose restart
 ### Enable Retry Logic
 ```bash
 # In .env:
-SURREAL_COMMANDS_RETRY_ENABLED=true
-SURREAL_COMMANDS_RETRY_MAX_ATTEMPTS=5
-SURREAL_COMMANDS_RETRY_WAIT_STRATEGY=exponential_jitter
+SUPABASE_RETRY_ENABLED=true
+SUPABASE_RETRY_MAX_ATTEMPTS=5
+SUPABASE_RETRY_WAIT_STRATEGY=exponential_jitter
 
 # Restart
 docker compose restart
@@ -247,7 +247,7 @@ docker compose restart
 ### Reduce Concurrency
 ```bash
 # In .env:
-SURREAL_COMMANDS_MAX_TASKS=2
+SUPABASE_MAX_CONNECTIONS=2
 
 # Restart
 docker compose restart

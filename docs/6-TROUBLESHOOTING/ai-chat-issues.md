@@ -188,7 +188,7 @@ docker compose restart
 docker stats
 
 # If CPU >80% or memory >90%:
-# Reduce: SURREAL_COMMANDS_MAX_TASKS=2
+# Reduce: SUPABASE_MAX_CONNECTIONS=2
 # Restart: docker compose restart
 ```
 

@@ -24,7 +24,7 @@ Open Notebook follows a three-tier architecture with clear separation of concern
                  │
                  ▼
          ┌───────────────┐
-         │   SurrealDB   │  ← Database (internal, auto-configured)
+         │   Supabase   │  ← Database (internal, auto-configured)
          │   (Port 8000) │
          └───────────────┘
 ```
@@ -139,7 +139,7 @@ FastAPI App (main.py)
 
 **Request-Response Cycle**:
 ```
-HTTP Request → Router → Service → Domain/Repository → SurrealDB
+HTTP Request → Router → Service → Domain/Repository → Supabase
                                        ↓
                                   LangGraph (optional)
                                        ↓

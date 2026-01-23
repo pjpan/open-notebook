@@ -34,13 +34,17 @@ Create a folder `open-notebook` and add this file:
 **docker-compose.yml**:
 ```yaml
 services:
-  surrealdb:
-    image: surrealdb/surrealdb:v2
-    command: start --user root --pass password --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
+  supabase:
+    image: supabase/postgres:15.0.0
     ports:
-      - "8000:8000"
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: open_notebook
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - ./surreal_data:/mydata
+      - ./supabase_data:/var/lib/postgresql/data
+    restart: always
 
   open_notebook:
     image: lfnovo/open_notebook:v1-latest
@@ -53,17 +57,15 @@ services:
       - OPENAI_API_KEY=sk-...  # Your OpenAI key
       # - ANTHROPIC_API_KEY=sk-ant-...  # Or Anthropic
       # - GOOGLE_API_KEY=...  # Or Google
+      # - GROQ_API_KEY=...  # Or Groq
 
       # Database
-      - SURREAL_URL=ws://surrealdb:8000/rpc
-      - SURREAL_USER=root
-      - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SUPABASE_URL=postgresql://postgres:postgres@supabase:5432/open_notebook
+      - SUPABASE_ANON_KEY=anon_key
     volumes:
       - ./notebook_data:/app/data
     depends_on:
-      - surrealdb
+      - supabase
     restart: always
 
 ```
@@ -85,7 +87,7 @@ docker compose up -d
 
 Wait 15-20 seconds for all services to start:
 ```
-✅ surrealdb running on :8000
+✅ supabase running on :5432
 ✅ open_notebook running on :8502 (UI) and :5055 (API)
 ```
 
@@ -161,7 +163,7 @@ Add to `docker-compose.yml`:
     restart: always
 
 volumes:
-  surreal_data:
+  supabase_data:
   ollama_models:
 ```
 
@@ -185,9 +187,8 @@ docker exec open_notebook-ollama-1 ollama pull mistral
 |----------|---------|---------|
 | `OPENAI_API_KEY` | OpenAI API key | `sk-proj-...` |
 | `ANTHROPIC_API_KEY` | Anthropic/Claude key | `sk-ant-...` |
-| `SURREAL_URL` | Database connection | `ws://surrealdb:8000/rpc` |
-| `SURREAL_USER` | Database user | `root` |
-| `SURREAL_PASSWORD` | Database password | `password` |
+| `SUPABASE_URL` | Database connection | `postgresql://postgres:postgres@supabase:5432/open_notebook` |
+| `SUPABASE_ANON_KEY` | Database anon key | `anon_key` |
 | `API_URL` | API external URL | `http://localhost:5055` |
 | `NEXT_PUBLIC_API_URL` | Frontend API URL | `http://localhost:5055` |
 
@@ -276,9 +277,9 @@ Then access at `http://localhost:8503`
 
 ### Database Connection Issues
 
-Check SurrealDB is running:
+Check Supabase is running:
 ```bash
-docker compose logs surrealdb
+docker compose logs supabase
 ```
 
 Reset database:

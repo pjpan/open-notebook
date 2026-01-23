@@ -4,7 +4,7 @@ prompts/patterns/user/
 data/
 .uploads/
 sqlite-db/
-surreal-data/
+supabase-data/
 docker.env
 notebook_data/
 # Python-specific

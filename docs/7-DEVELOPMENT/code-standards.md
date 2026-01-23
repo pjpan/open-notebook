@@ -236,7 +236,7 @@ async def create_notebook(notebook: NotebookCreate):
 
 ## Database Standards
 
-### SurrealDB Patterns
+### Supabase/PostgreSQL Patterns
 
 Use the repository pattern consistently:
 
@@ -266,13 +266,16 @@ async def update_notebook(notebook_id: str, data: Dict[str, Any]) -> Dict[str, A
 
 Use migrations for schema changes:
 
-```surrealql
--- migrations/8.surrealql
-DEFINE TABLE IF NOT EXISTS new_feature SCHEMAFULL;
-DEFINE FIELD IF NOT EXISTS name ON TABLE new_feature TYPE string;
-DEFINE FIELD IF NOT EXISTS description ON TABLE new_feature TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS created ON TABLE new_feature TYPE datetime DEFAULT time::now();
-DEFINE FIELD IF NOT EXISTS updated ON TABLE new_feature TYPE datetime DEFAULT time::now();
+```sql
+-- migrations/001_initial_schema.sql
+CREATE TABLE IF NOT EXISTS notebooks (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    archived BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
 
 ## TypeScript Standards

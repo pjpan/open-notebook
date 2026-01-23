@@ -151,7 +151,7 @@ services:
       - OPEN_NOTEBOOK_PASSWORD=${OPEN_NOTEBOOK_PASSWORD}
     volumes:
       - ./notebook_data:/app/data
-      - ./surreal_data:/mydata
+      - ./supabase_data:/var/lib/postgresql/data
     # Only expose to localhost (nginx handles public access)
     ports:
       - "127.0.0.1:8502:8502"
@@ -392,15 +392,18 @@ services:
     ports:
       - "5055:5055"
     depends_on:
-      - surrealdb
+      - supabase
 
-  surrealdb:
-    image: surrealdb/surrealdb:latest
-    command: start --log trace --user root --pass root file:/mydata/database.db
+  supabase:
+    image: supabase/postgres:15.0.0
+    environment:
+      POSTGRES_DB: open_notebook
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "8000:8000"
+      - "5432:5432"
     volumes:
-      - ./surreal_data:/mydata
+      - ./supabase_data:/var/lib/postgresql/data
 ```
 
 **nginx.conf:**

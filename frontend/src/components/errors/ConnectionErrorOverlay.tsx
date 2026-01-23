@@ -90,13 +90,13 @@ export function ConnectionErrorOverlay({
             </div>
           ) : (
             <div className="space-y-2 text-sm bg-muted p-4 rounded">
-              <p className="font-medium">{t.connectionErrors.checkSurreal}</p>
+               <p className="font-medium">{t.connectionErrors.checkDb}</p>
               <code className="block bg-background p-2 rounded text-xs">
                 # {t.connectionErrors.dockerLabel}:
                 <br />
-                docker compose ps | grep surrealdb
+                 docker compose ps | grep supabase
                 <br />
-                docker compose logs surrealdb
+                 docker compose logs supabase
               </code>
             </div>
           )}

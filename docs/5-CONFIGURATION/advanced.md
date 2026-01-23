@@ -12,7 +12,7 @@ Performance tuning, debugging, and advanced features.
 # Max concurrent database operations (default: 5)
 # Increase: Faster processing, more conflicts
 # Decrease: Slower, fewer conflicts
-SURREAL_COMMANDS_MAX_TASKS=5
+SUPABASE_MAX_CONNECTIONS=5
 ```
 
 **Guidelines:**
@@ -26,7 +26,7 @@ Higher concurrency = more throughput but more database conflicts (retries handle
 
 ```env
 # How to wait between retries
-SURREAL_COMMANDS_RETRY_WAIT_STRATEGY=exponential_jitter
+SUPABASE_RETRY_WAIT_STRATEGY=exponential_jitter
 
 # Options:
 # - exponential_jitter (recommended)
@@ -91,8 +91,8 @@ LOGLEVEL=DEBUG  # For Python components
 ### Debug Specific Components
 
 ```bash
-# Only surreal operations
-RUST_LOG=surrealdb=debug
+# Only database operations
+RUST_LOG=supabase=debug
 
 # Only langchain
 LOGLEVEL=langchain:debug
@@ -124,7 +124,7 @@ Then visit https://smith.langchain.com to see traces.
 Frontend: 8502 (Docker deployment)
 Frontend: 3000 (Development from source)
 API: 5055
-SurrealDB: 8000
+Supabase: 5432
 ```
 
 ### Changing Frontend Port
@@ -158,18 +158,18 @@ Access API directly: `http://localhost:5056/docs`
 
 **Note:** When changing API port, you must set `API_URL` explicitly since auto-detection assumes port 5055.
 
-### Changing SurrealDB Port
+### Changing Supabase Port
 
 ```yaml
 services:
-  surrealdb:
+  supabase:
     ports:
-      - "8001:8000"  # Change from 8000 to 8001
+      - "5433:5432"  # Change from 5432 to 5433
     environment:
-      - SURREAL_URL=ws://surrealdb:8001/rpc  # Update connection URL
+      - SUPABASE_URL=postgresql://postgres:postgres@supabase:5433/postgres  # Update connection URL
 ```
 
-**Important:** Internal Docker network uses container name (`surrealdb`), not `localhost`.
+**Important:** Internal Docker network uses container name (`supabase`), not `localhost`.
 
 ---
 
@@ -228,8 +228,8 @@ OPENAI_COMPATIBLE_BASE_URL_EMBEDDING=http://localhost:8001/v1
 
 ```env
 # Don't use defaults in production
-SURREAL_USER=your_secure_username
-SURREAL_PASSWORD=$(openssl rand -base64 32)  # Generate secure password
+SUPABASE_USER=your_secure_username
+SUPABASE_PASSWORD=$(openssl rand -base64 32)  # Generate secure password
 ```
 
 ### Add Password Protection
@@ -251,7 +251,7 @@ API_URL=https://mynotebook.example.com
 Restrict access to your Open Notebook:
 - Port 8502 (frontend): Only from your IP
 - Port 5055 (API): Only from frontend
-- Port 8000 (SurrealDB): Never expose to internet
+- Port 5432 (Supabase): Never expose to internet
 
 ---
 
@@ -305,21 +305,21 @@ GEMINI_API_BASE_URL
 
 ### Database
 ```env
-SURREAL_URL
-SURREAL_USER
-SURREAL_PASSWORD
-SURREAL_NAMESPACE
-SURREAL_DATABASE
+SUPABASE_URL
+SUPABASE_USER
+SUPABASE_PASSWORD
+SUPABASE_NAMESPACE
+SUPABASE_DATABASE
 ```
 
 ### Performance
 ```env
-SURREAL_COMMANDS_MAX_TASKS
-SURREAL_COMMANDS_RETRY_ENABLED
-SURREAL_COMMANDS_RETRY_MAX_ATTEMPTS
-SURREAL_COMMANDS_RETRY_WAIT_STRATEGY
-SURREAL_COMMANDS_RETRY_WAIT_MIN
-SURREAL_COMMANDS_RETRY_WAIT_MAX
+SUPABASE_MAX_CONNECTIONS
+SUPABASE_RETRY_ENABLED
+SUPABASE_RETRY_MAX_ATTEMPTS
+SUPABASE_RETRY_WAIT_STRATEGY
+SUPABASE_RETRY_WAIT_MIN
+SUPABASE_RETRY_WAIT_MAX
 ```
 
 ### API Settings
@@ -371,7 +371,7 @@ curl -X POST http://localhost:5055/api/chat \
 env | grep OPENAI_API_KEY
 
 # Verify database connection
-python -c "import os; print(os.getenv('SURREAL_URL'))"
+python -c "import os; print(os.getenv('SUPABASE_URL'))"
 ```
 
 ---
@@ -382,7 +382,7 @@ python -c "import os; print(os.getenv('SURREAL_URL'))"
 
 ```env
 # Reduce concurrency
-SURREAL_COMMANDS_MAX_TASKS=2
+SUPABASE_MAX_CONNECTIONS=2
 
 # Reduce TTS batch size
 TTS_BATCH_SIZE=1
@@ -392,10 +392,10 @@ TTS_BATCH_SIZE=1
 
 ```env
 # Check worker count
-SURREAL_COMMANDS_MAX_TASKS
+SUPABASE_MAX_CONNECTIONS
 
 # Reduce if maxed out:
-SURREAL_COMMANDS_MAX_TASKS=5
+SUPABASE_MAX_CONNECTIONS=5
 ```
 
 ### Slow Responses
@@ -405,17 +405,17 @@ SURREAL_COMMANDS_MAX_TASKS=5
 API_CLIENT_TIMEOUT=300
 
 # Check retry config
-SURREAL_COMMANDS_RETRY_MAX_ATTEMPTS=3
+SUPABASE_RETRY_MAX_ATTEMPTS=3
 ```
 
 ### Database Conflicts
 
 ```env
 # Reduce concurrency
-SURREAL_COMMANDS_MAX_TASKS=3
+SUPABASE_MAX_CONNECTIONS=3
 
 # Use jitter strategy
-SURREAL_COMMANDS_RETRY_WAIT_STRATEGY=exponential_jitter
+SUPABASE_RETRY_WAIT_STRATEGY=exponential_jitter
 ```
 
 ---
@@ -427,7 +427,7 @@ SURREAL_COMMANDS_RETRY_WAIT_STRATEGY=exponential_jitter
 | Path | Contents |
 |------|----------|
 | `./data` or `/app/data` | Uploads, podcasts, checkpoints |
-| `./surreal_data` or `/mydata` | SurrealDB database files |
+| `./supabase_data` or `/var/lib/postgresql/data` | Supabase database files |
 
 ### Quick Backup
 
@@ -437,7 +437,7 @@ docker compose down
 
 # Create timestamped backup
 tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz \
-  notebook_data/ surreal_data/
+  notebook_data/ supabase_data/
 
 # Restart services
 docker compose up -d
@@ -455,7 +455,7 @@ DATE=$(date +%Y%m%d-%H%M%S)
 # Create backup
 tar -czf "$BACKUP_DIR/open-notebook-$DATE.tar.gz" \
   /path/to/notebook_data \
-  /path/to/surreal_data
+  /path/to/supabase_data
 
 # Keep only last 7 days
 find "$BACKUP_DIR" -name "open-notebook-*.tar.gz" -mtime +7 -delete
@@ -476,7 +476,7 @@ Add to cron:
 docker compose down
 
 # Remove old data (careful!)
-rm -rf notebook_data/ surreal_data/
+rm -rf notebook_data/ supabase_data/
 
 # Extract backup
 tar -xzf backup-20240115-120000.tar.gz
@@ -490,7 +490,7 @@ docker compose up -d
 ```bash
 # On source server
 docker compose down
-tar -czf open-notebook-migration.tar.gz notebook_data/ surreal_data/
+tar -czf open-notebook-migration.tar.gz notebook_data/ supabase_data/
 
 # Transfer to new server
 scp open-notebook-migration.tar.gz user@newserver:/path/

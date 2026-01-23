@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 - Improved source listing speed by 20-30x (#436, closes #351)
   - Added database indexes on `source` field for `source_insight` and `source_embedding` tables
-  - Use SurrealDB `FETCH` clause for command status instead of N async calls
+  - Use Supabase SQL for command status instead of N async calls
 
 ## [1.5.1] - 2026-01-15
 

@@ -130,7 +130,7 @@ Having issues? Use this guide to diagnose and fix problems.
 **When something isn't working:**
 
 - [ ] Check if services are running: `docker ps`
-- [ ] Check logs: `docker compose logs api` (or frontend, surrealdb)
+- [ ] Check logs: `docker compose logs api` (or frontend, supabase)
 - [ ] Verify ports are exposed: `netstat -tlnp` or `lsof -i :5055`
 - [ ] Test connectivity: `curl http://localhost:5055/health`
 - [ ] Check environment variables: `docker inspect <container>`
@@ -213,7 +213,7 @@ curl http://localhost:5055/health
 docker stats
 
 # Reduce concurrency in .env
-SURREAL_COMMANDS_MAX_TASKS=2
+SUPABASE_MAX_CONNECTIONS=2
 ```
 
 **High costs?**

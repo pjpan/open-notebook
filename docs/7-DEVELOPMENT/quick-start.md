@@ -7,7 +7,7 @@ Get Open Notebook running locally in 5 minutes.
 - **Python 3.11+**
 - **Git**
 - **uv** (package manager) - install with `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Docker** (optional, for SurrealDB)
+- **Docker** (optional, for Supabase)
 
 ## 1. Clone the Repository (2 min)
 
@@ -35,16 +35,9 @@ uv --version
 In separate terminal windows:
 
 ```bash
-# Terminal 1: Start SurrealDB (database)
+# Terminal 1: Start Supabase (database)
 make database
-# or: docker run -d --name surrealdb -p 8000:8000 surrealdb/surrealdb:v2 start --user root --pass password --bind 0.0.0.0:8000 memory
-
-# Terminal 2: Start API (backend on port 5055)
-make api
-# or: uv run --env-file .env uvicorn api.main:app --host 0.0.0.0 --port 5055
-
-# Terminal 3: Start Frontend (UI on port 3000)
-cd frontend && npm run dev
+# or: docker run -d --name supabase -p 5432:5432 supabase/postgres:15.0.0
 ```
 
 ## 4. Verify Everything Works (instant)
@@ -77,10 +70,10 @@ lsof -i :5055
 uv run uvicorn api.main:app --port 5056
 ```
 
-### "Can't connect to SurrealDB"
+### "Can't connect to Supabase"
 ```bash
-# Check if SurrealDB is running
-docker ps | grep surrealdb
+# Check if Supabase is running
+docker ps | grep supabase
 
 # Restart it
 make database

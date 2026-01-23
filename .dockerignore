@@ -30,9 +30,9 @@ tmp
 data
 mydata
 notebook_data
-surreal_data
-surreal-data
-surreal_single_data
+supabase_data
+supabase-data
+supabase_single_data
 *.db
 *.log
 docker.env

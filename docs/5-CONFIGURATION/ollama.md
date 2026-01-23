@@ -114,7 +114,7 @@ services:
       - OLLAMA_API_BASE=http://ollama:11434
     volumes:
       - ./notebook_data:/app/data
-      - ./surreal_data:/mydata
+      - ./supabase_data:/var/lib/postgresql/data
     depends_on:
       - ollama
 

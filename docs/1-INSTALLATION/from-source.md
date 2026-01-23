@@ -7,7 +7,7 @@ Clone the repository and run locally. **For developers and contributors.**
 - **Python 3.11+** - [Download](https://www.python.org/)
 - **Node.js 18+** - [Download](https://nodejs.org/)
 - **Git** - [Download](https://git-scm.com/)
-- **Docker** (for SurrealDB) - [Download](https://docker.com/)
+- **Docker** (for Supabase) - [Download](https://docker.com/)
 - **uv** (Python package manager) - `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - API key from OpenAI or similar (or use Ollama for free)
 
@@ -50,12 +50,12 @@ uv sync
 
 > **Note**: Installing `uv` inside your Conda environment ensures that commands like `make start-all` and `make api` continue to work seamlessly.
 
-### 3. Start SurrealDB
+### 3. Start Supabase
 
 ```bash
 # Terminal 1
 make database
-# or: docker compose up surrealdb
+# or: docker compose up supabase
 ```
 
 ### 4. Set Environment Variables
@@ -86,7 +86,7 @@ cd frontend && npm install && npm run dev
 
 - **Frontend**: http://localhost:3000
 - **API Docs**: http://localhost:5055/docs
-- **Database**: http://localhost:8000
+- **Database**: http://localhost:5432
 
 ---
 
@@ -144,8 +144,8 @@ Install Node.js from https://nodejs.org/
 ### Database connection errors
 
 ```bash
-docker ps  # Check SurrealDB running
-docker logs surrealdb  # View logs
+docker ps  # Check Supabase running
+docker logs supabase  # View logs
 ```
 
 ### Port 5055 already in use

@@ -21,13 +21,16 @@ Create a new folder `open-notebook` and add this file:
 **docker-compose.yml**:
 ```yaml
 services:
-  surrealdb:
-    image: surrealdb/surrealdb:v2
-    command: start --user root --pass password --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
+  supabase:
+    image: supabase/postgres:15.0.0
     ports:
-      - "8000:8000"
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: open_notebook
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - ./surreal_data:/mydata
+      - ./supabase_data:/var/lib/postgresql/data
 
   open_notebook:
     image: lfnovo/open_notebook:v1-latest
@@ -40,15 +43,12 @@ services:
       - OPENAI_API_KEY=sk-...
 
       # Database (required)
-      - SURREAL_URL=ws://surrealdb:8000/rpc
-      - SURREAL_USER=root
-      - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SUPABASE_URL=postgresql://postgres:postgres@supabase:5432/open_notebook
+      - SUPABASE_ANON_KEY=anon_key
     volumes:
       - ./notebook_data:/app/data
     depends_on:
-      - surrealdb
+      - supabase
     restart: always
 
 ```

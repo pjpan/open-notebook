@@ -57,7 +57,7 @@ COPY --from=frontend-builder /app/frontend/.next/static /app/frontend/.next/stat
 COPY --from=frontend-builder /app/frontend/public /app/frontend/public
 
 # Setup directories and permissions
-RUN mkdir -p /app/data /mydata
+RUN mkdir -p /app/data /var/lib/postgresql/data
 
 # Ensure wait-for-api script is executable
 RUN chmod +x /app/scripts/wait-for-api.sh

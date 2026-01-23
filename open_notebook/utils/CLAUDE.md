@@ -26,7 +26,7 @@ Each utility is stateless and can be imported independently.
   - `add_note()`: Include note by ID
   - `add_insight()`: Include insight by ID
   - `build()`: Assemble context respecting token budget and priorities
-  - Uses vector_search to fetch source/insight content from SurrealDB
+  - Uses vector_search to fetch source/insight content from Supabase
   - Returns list of ContextItem objects sorted by priority
 
 **Key behavior**:

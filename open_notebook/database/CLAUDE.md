@@ -74,7 +74,7 @@ Both leverage connection context manager for lifecycle management and automatic 
 
 - **Supabase connection management**: Supabase client handles connection pooling automatically
 - **Table-based relationships**: Relationships managed via join tables instead of native graph relationships
-- **Standard SQL operations**: Using standard SQL instead of SurrealQL
+- **Standard SQL operations**: Using standard SQL
 - **Foreign key relationships**: Standard PostgreSQL foreign key constraints instead of graph edges
 - **Timestamp handling**: Standard datetime field handling with ISO format support
 

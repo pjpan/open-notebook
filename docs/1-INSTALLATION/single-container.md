@@ -29,11 +29,8 @@ services:
       - "5055:5055"  # API
     environment:
       - OPENAI_API_KEY=sk-...
-      - SURREAL_URL=ws://localhost:8000/rpc
-      - SURREAL_USER=root
-      - SURREAL_PASSWORD=password
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=open_notebook
+      - SUPABASE_URL=postgresql://postgres:postgres@localhost:5432/open_notebook
+      - SUPABASE_ANON_KEY=anon_key
     volumes:
       - ./data:/app/data
     restart: always
@@ -96,9 +93,8 @@ heroku config:set OPENAI_API_KEY=sk-...
 | Variable | Purpose | Example |
 |----------|---------|---------|
 | `OPENAI_API_KEY` | API key | `sk-...` |
-| `SURREAL_URL` | Database | `ws://localhost:8000/rpc` |
-| `SURREAL_USER` | DB user | `root` |
-| `SURREAL_PASSWORD` | DB password | `password` |
+| `SUPABASE_URL` | Database | `postgresql://postgres:postgres@localhost:5432/open_notebook` |
+| `SUPABASE_ANON_KEY` | DB anon key | `anon_key` |
 | `API_URL` | External URL (for remote access) | `https://myapp.example.com` |
 
 ---

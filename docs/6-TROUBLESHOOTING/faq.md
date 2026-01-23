@@ -100,7 +100,7 @@ Open Notebook is an open-source, privacy-focused alternative to Google's Noteboo
 ### Where is my data stored?
 
 **Local storage**: By default, all data is stored locally:
-- Database: SurrealDB files in `surreal_data/`
+- Database: Supabase files in `supabase_data/`
 - Uploads: Files in `data/uploads/`
 - Podcasts: Generated audio in `data/podcasts/`
 - No external data transmission (except to chosen AI providers)
@@ -109,7 +109,7 @@ Open Notebook is an open-source, privacy-focused alternative to Google's Noteboo
 
 ```bash
 # Create backup
-tar -czf backup-$(date +%Y%m%d).tar.gz data/ surreal_data/
+tar -czf backup-$(date +%Y%m%d).tar.gz data/ supabase_data/
 
 # Restore backup
 tar -xzf backup-20240101.tar.gz

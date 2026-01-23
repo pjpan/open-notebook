@@ -82,7 +82,7 @@ Don't be shy! We're here to help new contributors succeed.
 
 ### External Documentation
 - [FastAPI Docs](https://fastapi.tiangolo.com/)
-- [SurrealDB Docs](https://surrealdb.com/docs)
+- [Supabase Docs](https://supabase.com/docs)
 - [LangChain Docs](https://python.langchain.com/)
 - [Next.js Docs](https://nextjs.org/docs)
 
