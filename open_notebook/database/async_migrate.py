@@ -1,20 +1,14 @@
 import os
 from typing import Optional
 from loguru import logger
-from supabase import create_client, Client
+from open_notebook.config import get_supabase_client
 
 
 class AsyncMigrationManager:
     """Migration manager for Supabase database operations"""
-    
+
     def __init__(self):
-        self.supabase_url = os.environ.get("SUPABASE_URL")
-        self.supabase_key = os.environ.get("SUPABASE_ANON_KEY")
-        
-        if not self.supabase_url or not self.supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in the environment.")
-        
-        self.client: Client = create_client(self.supabase_url, self.supabase_key)
+        self.client = get_supabase_client()
     
     async def get_current_version(self) -> str:
         """Get the current database version"""

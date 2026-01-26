@@ -135,7 +135,6 @@ class ModelManager:
 
     async def get_embedding_model(self, **kwargs) -> Optional[EmbeddingModel]:
         """Get the default embedding model"""
-.
         defaults = await self.get_defaults()
         model_id = defaults.default_embedding_model
         if not model_id:

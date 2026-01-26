@@ -1,19 +1,7 @@
-import os
+from open_notebook.config import get_supabase_client
 from contextlib import contextmanager
-from supabase import create_client, Client
 from loguru import logger
 from typing import Any, Dict, List, Optional
-
-def get_supabase_client() -> Client:
-    """Get a Supabase client."""
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_ANON_KEY")
-
-    if not supabase_url or not supabase_key:
-        logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set in the environment.")
-        raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set.")
-
-    return create_client(supabase_url, supabase_key)
 
 supabase_client = get_supabase_client()
 

@@ -55,6 +55,55 @@ class Notebook(ObjectModel):
             )
             raise DatabaseOperationError(e)
 
+    @classmethod
+    async def get_all_with_counts(cls, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieves all notebooks with counts of associated sources and notes.
+        This method uses a single SQL query to avoid the N+1 problem.
+        """
+        try:
+            # Base query to join notebooks with sources and notes and count them
+            query = """
+                SELECT
+                    n.id,
+                    n.name,
+                    n.description,
+                    n.archived,
+                    n.created,
+                    n.updated,
+                    COUNT(DISTINCT s.id) AS source_count,
+                    COUNT(DISTINCT nt.id) AS note_count
+                FROM
+                    notebook n
+                LEFT JOIN
+                    source s ON n.id = s.notebook_id
+                LEFT JOIN
+                    note nt ON n.id = nt.notebook_id
+            """
+
+            # Append WHERE clause if filters are provided
+            where_clauses = []
+            params = {}
+            if filters:
+                for key, value in filters.items():
+                    # Assuming basic equality filter for now.
+                    # The key should be a valid column name to prevent SQL injection.
+                    if key in ["archived"]:
+                        where_clauses.append(f"n.{key} = %({key})s")
+                        params[key] = value
+
+            if where_clauses:
+                query += " WHERE " + " AND ".join(where_clauses)
+
+            query += " GROUP BY n.id"
+
+            from open_notebook.database.repository import repo_execute_query
+            results = await repo_execute_query(query, params)
+            return results
+        except Exception as e:
+            logger.error(f"Error fetching notebooks with counts: {str(e)}")
+            raise DatabaseOperationError(e)
+
 
 class Asset(BaseModel):
     file_path: Optional[str] = None
