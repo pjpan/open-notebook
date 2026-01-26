@@ -20,26 +20,24 @@ async def get_notebooks(
         filters = {}
         if archived is not None:
             filters["archived"] = archived
-        
-        notebooks = await Notebook.get_all()
-        
-        response = []
-        for nb in notebooks:
-            if nb.id is not None:
-                source_count = await repo_count("source", filters={"notebook_id": nb.id})
-                note_count = await repo_count("note", filters={"notebook_id": nb.id})
-                response.append(
-                    NotebookResponse(
-                        id=nb.id,
-                        name=nb.name,
-                        description=nb.description,
-                        archived=nb.archived,
-                        created=str(nb.created),
-                        updated=str(nb.updated),
-                        source_count=source_count,
-                        note_count=note_count,
-                    )
-                )
+
+        # Call the new efficient method
+        notebooks_with_counts = await Notebook.get_all_with_counts(filters=filters)
+
+        # Map the results to the response model
+        response = [
+            NotebookResponse(
+                id=nb["id"],
+                name=nb["name"],
+                description=nb["description"],
+                archived=nb["archived"],
+                created=str(nb["created"]),
+                updated=str(nb["updated"]),
+                source_count=nb["source_count"],
+                note_count=nb["note_count"],
+            )
+            for nb in notebooks_with_counts
+        ]
         return response
     except Exception as e:
         logger.error(f"Error fetching notebooks: {str(e)}")
